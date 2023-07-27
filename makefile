@@ -102,8 +102,6 @@ OBJECTS += $(OBJ)
 
 OUTPUT := $1
 
-$$(warning $(call get-library-file,$2))
-
 $(OUT_DIR)/$1: $(OBJ) $(call get-library-file,$2)
 	$(CC) -o $$@ $$^
 

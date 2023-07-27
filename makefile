@@ -26,11 +26,14 @@ BEAR := bear
 GIT := git
 
 # Build
+DEPFILE := dependency.mk
+
 SOURCES :=
 OBJECTS :=
 OUTPUT ?= program
+
 DEPENDENCIES :=
-LIBRARIES := $(file < dependencies.mk)
+LIBRARIES := $(file < $(DEPFILE))
 
 # Internal
 .DEFAULT_GOAL = help
@@ -53,43 +56,95 @@ source-to-object = $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$1))
 # $(call get-include-path,from-source) -> include-path
 get-include-path = $(patsubst %$(SRC_DIR)/,%$(INC_DIR)/,$(dir $1))
 
-# $(call make-github-library,git-url)
-# * git-url: username/repository
-define make-github-library
+# $(call create-symlink,base-dir,target-dir,name)
+create-symlink = $(shell												\
+	mkdir -p $1;														\
+	test -L $(strip $1)/$(strip $3) || 									\
+	ln -s $$(realpath -m --relative-to $1 $2) $(strip $1)/$(strip $3)	\
+)
+
+# $(call create-include-dir,base-dir)
+create-include-dir = $(foreach d,$(file < $1/$(DEPFILE)),					\
+	$(call create-symlink,													\
+		$(patsubst %/,%,$1/$(INC_DIR)/$(dir $d)),							\
+		$(LIB_DIR)/$d/$(INC_DIR),											\
+		$(notdir $d)														\
+	)																		\
+)
+
+# $(call get-number-of-libraries)
+get-number-of-libraries = $(words 											\
+	$(foreach u,$(wildcard $(LIB_DIR)/*),$(wildcard $u/*))					\
+)
+
+define make-library
+$(eval LIB_SRC := $(call get-library-source,$2))
+$(eval LIB_OBJ := $(call source-to-object,$(LIB_SRC)))
+
+LIBRARIES += $2
+
+SOURCES += $(LIB_SRC)
+OBJECTS += $(LIB_OBJ)
+
+$(call get-library-file,$2): $(LIB_OBJ)
+	$(AR) $(ARFLAGS) $$@ $$^
 
 endef
 
-# $(call make-program,name,prerequisite-library)
+# $(call make-program,name,libraries)
 define make-program
-$(eval SRCS := $(wildcard $(SRC_DIR)/*.c))
-$(eval OBJS := $(call source-to-object,$(SRCS)))
+$(eval SRC := $(wildcard $(SRC_DIR)/*.c))
+$(eval OBJ := $(call source-to-object,$(SRC)))
 
-SOURCES += $(SRCS)
-OBJECTS += $(OBJS)
+SOURCES += $(SRC)
+OBJECTS += $(OBJ)
 
 OUTPUT := $1
 
-$(OUT_DIR)/$1: $(OBJS) $(call get-library-file,$2)
-	$(CC) -o $$@ $$?
+$(OUT_DIR)/$1: $(OBJ) $(call get-library-file,$2)
+	$(CC) -o $$@ $$? 
 
 endef
-
 # -----------------------------------------------------------------------------
 # Preprocessing
 # -----------------------------------------------------------------------------
-create_include_dir := $(shell												\
-	for d in $(LIBRARIES);													\
+$(call create-include-dir,.)
+
+$(foreach l,$(LIBRARIES),													\
+	$(eval LIBRARIES += $(file < $(LIB_DIR)/$l/$(DEPFILE)))					\
+)
+
+ifneq "$(words $(LIBRARIES))" "$(call get-number-of-libraries)"
+
+download_libraries := $(foreach l,$(LIBRARIES),								\
+	$(shell test -d $(LIB_DIR)/$l 											\
+		 || git clone https://github.com/$l $(LIB_DIR)/$l)					\
+	$(call create-include-dir,$(LIB_DIR)/$l)								\
+)
+
+.PHONY: FORCE
+FORCE:
+
+%:: FORCE
+	@$(MAKE) $@
+
+else
+
+create_output_dir := $(shell												\
+	$(MKDIR) $(OUT_DIR);													\
+	$(MKDIR) $(OUT_DIR)/$(SRC_DIR);											\
+	for f in $(sort $(dir $(OBJECTS)));										\
 	do																		\
-		$(TEST) -d $(INC_DIR)/$$(dirname $$d) || 							\
-		$(MKDIR) $(INC_DIR)/$$(dirname $$d);								\
-		$(TEST) -L $(INC_DIR)/$$d ||										\
-		$(LN) ../../$(LIB_DIR)/$$d/$(INC_DIR)								\
-		      $(INC_DIR)/$$d;												\
+		$(TEST) -d $$f 														\
+			|| $(MKDIR) $$f;												\
+	done;																	\
+	for l in $(LIBRARIES);													\
+	do																		\
+		$(MKDIR) $(OUT_DIR)/$(LIB_DIR)/$$l/$(SRC_DIR);						\
 	done																	\
 )
 
-$(eval $(call make-github-library,$(LIBRARIES)))
-$(eval $(call make-program,$(OUTPUT),$(LIBRARIES)))
+$(eval $(call make-program,$(OUTPUT),$(file < $(DEPFILE))))
 
 # -----------------------------------------------------------------------------
 # Recipes 
@@ -99,9 +154,6 @@ $(call get-library-file,$(LIBRARIES)): $(OUT_DIR)/$(LIB_DIR)/%.a: 			\
 		$$(call source-to-object,$$(call get-library-source,%))				\
 		| $(call get-library-dir,%)
 	$(AR) $(ARFLAGS) $@ $^
-
-$(call get-library-dir,$(LIBRARIES)):
-	$(GIT) clone https://github.com/$(patsubst $(LIB_DIR)/%,%,$@) $@
 
 $(OUT_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 								\
@@ -141,7 +193,11 @@ all: build
 .PHONY: clean
 clean:
 	$(RM) -r $(OUT_DIR)
-	$(RM) $(addprefix $(INC_DIR)/,$(LIBRARIES))
+	$(RM) -r $(addprefix $(INC_DIR)/,$(dir $(LIBRARIES)))
+
+.PHONY: cleanll
+cleanall: clean
+	$(RM) -r $(LIB_DIR)
 
 .PHONY: variables
 variables:
@@ -162,4 +218,5 @@ run:
 # -----------------------------------------------------------------------------
 ifneq "$(MAKECMDGOALS)" "clean"
 include $(DEPENDENCIES)
+endif
 endif

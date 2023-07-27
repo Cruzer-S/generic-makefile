@@ -77,16 +77,17 @@ get-number-of-libraries = $(words 											\
 	$(foreach u,$(wildcard $(LIB_DIR)/*),$(wildcard $u/*))					\
 )
 
+# $(call make-library,name,libraries)
 define make-library
-$(eval LIB_SRC := $(call get-library-source,$2))
-$(eval LIB_OBJ := $(call source-to-object,$(LIB_SRC)))
+$(eval SRC := $(call get-library-source,$1))
+$(eval OBJ := $(call source-to-object,$(SRC)))
 
-LIBRARIES += $2
+LIBRARIES += $1
 
-SOURCES += $(LIB_SRC)
-OBJECTS += $(LIB_OBJ)
+SOURCES += $(SRC)
+OBJECTS += $(OBJ)
 
-$(call get-library-file,$2): $(LIB_OBJ)
+$(call get-library-file,$1): $(OBJ) $(call get-library-file,$1)
 	$(AR) $(ARFLAGS) $$@ $$^
 
 endef
@@ -102,6 +103,7 @@ OBJECTS += $(OBJ)
 OUTPUT := $1
 
 $(OUT_DIR)/$1: $(OBJ) $(call get-library-file,$2)
+	# $(call get-library-file,$2)
 	$(CC) -o $$@ $$? 
 
 endef
@@ -145,16 +147,18 @@ create_output_dir := $(shell												\
 )
 
 $(eval $(call make-program,$(OUTPUT),$(file < $(DEPFILE))))
+$(foreach l,$(LIBRARIES),													\
+	$(eval $(call make-library,$l,											\
+			$(file < $(call get-library-dir,$l)/$(DEPFILE))					\
+		)																	\
+	)																		\
+)
+
+DEPENDENCIES := $(patsubst %.o,%.d,$(OBJECTS))
 
 # -----------------------------------------------------------------------------
 # Recipes 
 # -----------------------------------------------------------------------------
-.SECONDEXPANSION:
-$(call get-library-file,$(LIBRARIES)): $(OUT_DIR)/$(LIB_DIR)/%.a: 			\
-		$$(call source-to-object,$$(call get-library-source,%))				\
-		| $(call get-library-dir,%)
-	$(AR) $(ARFLAGS) $@ $^
-
 $(OUT_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 								\
 		  -I$(call get-include-path,$<)
@@ -181,7 +185,7 @@ compile: $(OBJECTS)
 .PHONY: help
 help:
 	@$(CAT) $(MAKEFILE_LIST)											|	\
-	$(GREP) -v -e '^$$1'												| 	\
+	$(GREP) -v -e '^$$1' -v -e '^FORCE'									| 	\
 	$(AWK) '/^[^.%][-A-Za-z0-9_]*:/											\
 		   { print substr($$1, 1, length($$1) - 1) }'					|	\
 	$(SORT)																|	\
@@ -213,11 +217,18 @@ install:
 run:
 	@./$(OUT_DIR)/$(OUTPUT)
 
+.PHONY: example
+example:
+	$(MKDIR) $(SRC_DIR) $(INC_DIR) $(LIB_DIR)
+	$(TOUCH) dependency.mk
+	$(file > dependency.mk,Cruzer-S/cstring Cruzer-S/argument-parser)
 # -----------------------------------------------------------------------------
 # Include
 # -----------------------------------------------------------------------------
-ifdef $(strip $(filter $(MAKECMDGOALS),"clean" "cleanall"))
+ifneq "$(MAKECMDGOALS)" "clean"
+ifneq "$(MAKECMDGOALS)" "cleanall"
 include $(DEPENDENCIES)
+endif
 endif
 
 endif

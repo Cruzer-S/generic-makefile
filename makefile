@@ -87,7 +87,7 @@ LIBRARIES += $1
 SOURCES += $(SRC)
 OBJECTS += $(OBJ)
 
-$(call get-library-file,$1): $(OBJ) $(call get-library-file,$1)
+$(call get-library-file,$1): $(OBJ) $(call get-library-file,$2)
 	$(AR) $(ARFLAGS) $$@ $$^
 
 endef
@@ -102,9 +102,10 @@ OBJECTS += $(OBJ)
 
 OUTPUT := $1
 
+$$(warning $(call get-library-file,$2))
+
 $(OUT_DIR)/$1: $(OBJ) $(call get-library-file,$2)
-	# $(call get-library-file,$2)
-	$(CC) -o $$@ $$? 
+	$(CC) -o $$@ $$^
 
 endef
 # -----------------------------------------------------------------------------
@@ -146,13 +147,13 @@ create_output_dir := $(shell												\
 	done																	\
 )
 
-$(eval $(call make-program,$(OUTPUT),$(file < $(DEPFILE))))
 $(foreach l,$(LIBRARIES),													\
 	$(eval $(call make-library,$l,											\
 			$(file < $(call get-library-dir,$l)/$(DEPFILE))					\
 		)																	\
 	)																		\
 )
+$(eval $(call make-program,$(OUTPUT),$(file < $(DEPFILE))))
 
 DEPENDENCIES := $(patsubst %.o,%.d,$(OBJECTS))
 
@@ -227,7 +228,7 @@ example:
 # -----------------------------------------------------------------------------
 ifneq "$(MAKECMDGOALS)" "clean"
 ifneq "$(MAKECMDGOALS)" "cleanall"
-include $(DEPENDENCIES)
+-include $(DEPENDENCIES)
 endif
 endif
 

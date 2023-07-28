@@ -33,7 +33,7 @@ OBJECTS :=
 OUTPUT ?= program
 
 DEPENDENCIES :=
-LIBRARIES := $(file < $(DEPFILE))
+LIBRARIES := $(sort $(file < $(DEPFILE)))
 
 # Internal
 .DEFAULT_GOAL = help
@@ -112,7 +112,9 @@ endef
 $(call create-include-dir,.)
 
 $(foreach l,$(LIBRARIES),													\
-	$(eval LIBRARIES += $(file < $(LIB_DIR)/$l/$(DEPFILE)))					\
+	$(eval LIBRARIES := $(sort												\
+		$(LIBRARIES) $(file < $(LIB_DIR)/$l/$(DEPFILE))						\
+	))																		\
 )
 
 ifneq "$(words $(LIBRARIES))" "$(call get-number-of-libraries)"
@@ -122,6 +124,8 @@ download_libraries := $(foreach l,$(LIBRARIES),								\
 		 || git clone https://github.com/$l $(LIB_DIR)/$l)					\
 	$(call create-include-dir,$(LIB_DIR)/$l)								\
 )
+
+
 
 .PHONY: FORCE
 FORCE:

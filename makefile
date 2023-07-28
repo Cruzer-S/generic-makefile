@@ -219,8 +219,8 @@ run:
 .PHONY: example
 example:
 	$(MKDIR) $(SRC_DIR) $(INC_DIR) $(LIB_DIR)
-	$(TOUCH) dependency.mk
-	$(file > dependency.mk,Cruzer-S/cstring Cruzer-S/argument-parser)
+	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/main.c
+	$(MV) main.c $(SRC_DIR)
 # -----------------------------------------------------------------------------
 # Include
 # -----------------------------------------------------------------------------

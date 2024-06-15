@@ -6,6 +6,7 @@ LIB_DIR := library
 SRC_DIR := source
 INC_DIR := include
 OUT_DIR := output
+CNF_DIR := config
 
 #  Program
 MKDIR := mkdir -p
@@ -26,14 +27,17 @@ BEAR := bear
 GIT := git
 
 # Build
-DEPFILE := dependency.mk
+LIBFILE := $(CNF_DIR)/library.mk
+RUNFILE := $(CNF_DIR)/run.mk
 
 SOURCES :=
 OBJECTS :=
+DEPENDENCIES :=
+
 OUTPUT ?= program
 
-DEPENDENCIES :=
-LIBRARIES := $(sort $(file < $(DEPFILE)))
+
+LIBRARIES := $(sort $(file < $(LIBFILE)))
 
 # Internal
 .DEFAULT_GOAL = help
@@ -64,7 +68,7 @@ create-symlink = $(shell												\
 )
 
 # $(call create-include-dir,base-dir)
-create-include-dir = $(foreach d,$(file < $1/$(DEPFILE)),					\
+create-include-dir = $(foreach d,$(file < $1/$(LIBFILE)),					\
 	$(call create-symlink,													\
 		$(patsubst %/,%,$1/$(INC_DIR)/$(dir $d)),							\
 		$(LIB_DIR)/$d/$(INC_DIR),											\
@@ -113,7 +117,7 @@ $(call create-include-dir,.)
 
 $(foreach l,$(LIBRARIES),													\
 	$(eval LIBRARIES := $(sort												\
-		$(LIBRARIES) $(file < $(LIB_DIR)/$l/$(DEPFILE))						\
+		$(LIBRARIES) $(file < $(LIB_DIR)/$l/$(LIBFILE))						\
 	))																		\
 )
 
@@ -151,11 +155,11 @@ create_output_dir := $(shell												\
 
 $(foreach l,$(LIBRARIES),													\
 	$(eval $(call make-library,$l,											\
-			$(file < $(call get-library-dir,$l)/$(DEPFILE))					\
+			$(file < $(call get-library-dir,$l)/$(LIBFILE))					\
 		)																	\
 	)																		\
 )
-$(eval $(call make-program,$(OUTPUT),$(file < $(DEPFILE))))
+$(eval $(call make-program,$(OUTPUT),$(file < $(LIBFILE))))
 
 DEPENDENCIES := $(patsubst %.o,%.d,$(OBJECTS))
 
@@ -218,11 +222,11 @@ install:
 
 .PHONY: run
 run:
-	@./$(OUT_DIR)/$(OUTPUT)
+	@./$(OUT_DIR)/$(OUTPUT) $(file < $(RUNFILE))
 
 .PHONY: example
 example:
-	$(MKDIR) $(SRC_DIR) $(INC_DIR) $(LIB_DIR)
+	$(MKDIR) $(SRC_DIR) $(INC_DIR) $(LIB_DIR) $(CNF_DIR)
 	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/main.c
 	$(MV) main.c $(SRC_DIR)
 # -----------------------------------------------------------------------------

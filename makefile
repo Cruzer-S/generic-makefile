@@ -62,9 +62,9 @@ get-include-path = $(patsubst %$(SRC_DIR)/,%$(INC_DIR)/,$(dir $1))
 
 # $(call create-symlink,base-dir,target-dir,name)
 create-symlink = $(shell												\
-	mkdir -p $1;														\
-	test -L $(strip $1)/$(strip $3) || 									\
-	ln -s $$(realpath -m --relative-to $1 $2) $(strip $1)/$(strip $3)	\
+	$(MKDIR) $1;														\
+	$(TEST) -L $(strip $1)/$(strip $3) || 								\
+	$(LN) $$(realpath -m --relative-to $1 $2) $(strip $1)/$(strip $3)	\
 )
 
 # $(call create-include-dir,base-dir)
@@ -128,8 +128,6 @@ download_libraries := $(foreach l,$(LIBRARIES),								\
 		 || git clone https://github.com/$l $(LIB_DIR)/$l)					\
 	$(call create-include-dir,$(LIB_DIR)/$l)								\
 )
-
-
 
 .PHONY: FORCE
 FORCE:

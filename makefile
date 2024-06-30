@@ -187,6 +187,13 @@ archive: LIBRARIES += $(OUTPUT)
 .PHONY: compile
 compile: $(OBJECTS)
 
+.PHONY: library
+library:
+	for l in $(sort $(LIBRARIES));			\
+	do										\
+		(cd $(LIB_DIR)/$$l; git pull)		\
+    done
+
 .PHONY: help
 help:
 	@$(CAT) $(MAKEFILE_LIST)											|	\

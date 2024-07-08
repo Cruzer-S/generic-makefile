@@ -25,6 +25,7 @@ CAT := cat
 TOUCH := touch
 BEAR := bear
 GIT := git
+CTAGS := ctags
 
 # Build
 LIBFILE := $(CNF_DIR)/library.mk
@@ -202,6 +203,10 @@ help:
 		   { print substr($$1, 1, length($$1) - 1) }'					|	\
 	$(SORT)																|	\
 	$(PR) --omit-pagination --width=80 --columns=4
+
+.PHONY: tags
+tags:
+	$(CTAGS) -R
 
 .PHONY: all
 all: build

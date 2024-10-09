@@ -237,7 +237,7 @@ example:
 	$(MKDIR) $(SRC_DIR) $(INC_DIR) $(LIB_DIR) $(CNF_DIR)
 	$(TOUCH) $(LIBFILE) $(RUNFILE)
 
-	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/main.c
+	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/$(SRC_DIR)/main.c
 	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/$(BLDFILE)
 
 	$(MV) $(BLDFILE) $(CNF_DIR)

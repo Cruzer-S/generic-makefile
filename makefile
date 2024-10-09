@@ -8,12 +8,16 @@ INC_DIR := include
 OUT_DIR := output
 CNF_DIR := config
 
+# Configs 
+LIBFILE := $(CNF_DIR)/library.mk
+RUNFILE := $(CNF_DIR)/run.mk
+BLDFILE := $(CNF_DIR)/build.mk
+
 #  Program
 MKDIR := mkdir -p
 WGET := wget
 RM := rm -f
 MV := mv
-CC := gcc
 TEST := test
 SORT := sort
 GREP := grep
@@ -23,49 +27,39 @@ SED := sed
 LN := ln -s
 CAT := cat
 TOUCH := touch
-BEAR := bear
-GIT := git
 CTAGS := ctags
 
-# Build
-LIBFILE := $(CNF_DIR)/library.mk
-RUNFILE := $(CNF_DIR)/run.mk
-
+# Variables 
 SOURCES :=
 OBJECTS :=
 DEPENDENCIES :=
 
+LIBRARIES := $(file < $(LIBFILE))
+
 OUTPUT ?= program
-
-
-LIBRARIES := $(sort $(file < $(LIBFILE)))
 
 # Internal
 .DEFAULT_GOAL = help
 
+-include $(BLDFILE)
+
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
-# $(call get-library-name,library-list) -> library-dir-list
-get-library-dir = $(addprefix $(LIB_DIR)/,$1)
+# $(call get-source-file,dir) -> source-list
+get-source-file = $(wildcard $1/$(SRC_DIR)/*.c)
 
-# $(call get-library-file,library-list) -> library-file-list
-get-library-file = $(addsuffix .a,$(addprefix $(OUT_DIR)/$(LIB_DIR)/,$1))
-
-# $(call get-library-source,library-dir) -> library-source-list
-get-library-source = $(subst $(LIB_DIR)/$1/$(SRC_DIR)/main.c,,$(wildcard $(LIB_DIR)/$1/$(SRC_DIR)/*.c))
-
-# $(call source-to-object,source-list) -> object-list
-source-to-object = $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$1))
+# $(call get-archive-file,dir) -> archive-list
+get-archive-file = $(addsuffix .a,$(file < $1/$(LIBFILE)))
 
 # $(call get-include-path,from-source) -> include-path
 get-include-path = $(patsubst %$(SRC_DIR)/,%$(INC_DIR)/,$(dir $1))
 
 # $(call create-symlink,base-dir,target-dir,name)
-create-symlink = $(shell												\
-	$(MKDIR) $1;														\
-	$(TEST) -L $(strip $1)/$(strip $3) || 								\
-	$(LN) $$(realpath -m --relative-to $1 $2) $(strip $1)/$(strip $3)	\
+create-symlink = $(shell													\
+	$(MKDIR) $1;															\
+	$(TEST) -L $(strip $1)/$(strip $3) || 									\
+	$(LN) $$(realpath -m --relative-to $1 $2) $(strip $1)/$(strip $3)		\
 )
 
 # $(call create-include-dir,base-dir)
@@ -82,32 +76,30 @@ get-number-of-libraries = $(words 											\
 	$(foreach u,$(wildcard $(LIB_DIR)/*),$(wildcard $u/*))					\
 )
 
-# $(call make-library,name,libraries)
+# $(call make-library,name,dir)
 define make-library
-$(eval SRC := $(call get-library-source,$1))
-$(eval OBJ := $(call source-to-object,$(SRC)))
-
-LIBRARIES += $1
+$(eval SRC := $(patsubst %/main.c,,$(call get-source-file,$2)))
+$(eval OBJ := $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$(SRC))))
+$(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
 
 SOURCES += $(SRC)
 OBJECTS += $(OBJ)
 
-$(call get-library-file,$1): $(OBJ) $(call get-library-file,$2)
+$(OUT_DIR)/$(LIB_DIR)/$1: $(OBJ) $(ARV)
 	$(AR) $(ARFLAGS) $$@ $$^
 
 endef
 
-# $(call make-program,name,libraries)
+# $(call make-program,name,dir)
 define make-program
-$(eval SRC := $(wildcard $(SRC_DIR)/*.c))
-$(eval OBJ := $(call source-to-object,$(SRC)))
+$(eval SRC := $(call get-source-file,$2))
+$(eval OBJ := $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$(SRC))))
+$(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
 
 SOURCES += $(SRC)
 OBJECTS += $(OBJ)
 
-OUTPUT := $1
-
-$(OUT_DIR)/$1: $(OBJ) $(call get-library-file,$2)
+$(OUT_DIR)/$1: $(OBJ) $(ARV)
 	$(CC) -o $$@ $$^
 
 endef
@@ -136,7 +128,7 @@ FORCE:
 %:: FORCE
 	@$(MAKE) $@
 
-else
+else # ifneq "$(words $(LIBRARIES))" "$(call get-number-of-libraries)"
 
 create_output_dir := $(shell												\
 	$(MKDIR) $(OUT_DIR);													\
@@ -152,44 +144,41 @@ create_output_dir := $(shell												\
 	done																	\
 )
 
+# -----------------------------------------------------------------------------
+# Rules 
+# -----------------------------------------------------------------------------
+# Libraries
 $(foreach l,$(LIBRARIES),													\
-	$(eval $(call make-library,$l,											\
-			$(file < $(call get-library-dir,$l)/$(LIBFILE))					\
-		)																	\
-	)																		\
+	$(eval $(call make-library,$l.a,$(LIB_DIR)/$l))							\
 )
-$(eval $(call make-program,$(OUTPUT),$(file < $(LIBFILE))))
+
+# Output
+$(eval $(call make-program,$(OUTPUT),.))
 
 DEPENDENCIES := $(patsubst %.o,%.d,$(OBJECTS))
-
 # -----------------------------------------------------------------------------
 # Recipes 
 # -----------------------------------------------------------------------------
-$(OUT_DIR)/%.o: %.c
+$(OBJECTS): $(OUT_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 								\
 		  -I$(call get-include-path,$<)
 
-$(DEPENDENCIES): $(OUT_DIR)/%.d: %.c
-	# Create dependency files
+$(OUT_DIR)/$(DEPENDENCIES): $(OUT_DIR)/%.d: %.c
 	@$(CC) $(CFLAGS) -I$(call get-include-path,$<)							\
 		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $<	| 						\
 	$(SED) 's,\($(notdir $*)\.o\) *:,$(dir $@)\1 $@: ,' > $@.tmp
 	@$(MV) $@.tmp $@
-
 # -----------------------------------------------------------------------------
 # Commands
 # -----------------------------------------------------------------------------
 .PHONY: build
 build: $(OUT_DIR)/$(OUTPUT)
 
-.PHONY: archive
-archive: LIBRARIES += $(OUTPUT)
-
 .PHONY: compile
 compile: $(OBJECTS)
 
-.PHONY: library
-library:
+.PHONY: update
+update:
 	for l in $(sort $(LIBRARIES));			\
 	do										\
 		(cd $(LIB_DIR)/$$l; git pull)		\
@@ -231,13 +220,18 @@ variables:
 install:
 
 .PHONY: run
-run:
+run: $(OUT_DIR)/$(OUTPUT)
 	@./$(OUT_DIR)/$(OUTPUT) $(file < $(RUNFILE))
 
 .PHONY: example
 example:
 	$(MKDIR) $(SRC_DIR) $(INC_DIR) $(LIB_DIR) $(CNF_DIR)
+	$(TOUCH) $(LIBFILE) $(RUNFILE)
+
 	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/main.c
+	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/$(BLDFILE)
+
+	$(MV) $(BLDFILE) $(CNF_DIR)
 	$(MV) main.c $(SRC_DIR)
 # -----------------------------------------------------------------------------
 # Include
@@ -248,4 +242,4 @@ ifneq "$(MAKECMDGOALS)" "cleanall"
 endif
 endif
 
-endif
+endif # else of "$(words $(LIBRARIES))" "$(call get-number-of-libraries)"

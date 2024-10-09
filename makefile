@@ -38,6 +38,9 @@ LIBRARIES := $(file < $(LIBFILE))
 
 OUTPUT ?= program
 
+# Constants
+SYNC_TIME := $(shell date)
+
 # Internal
 .DEFAULT_GOAL = help
 
@@ -85,7 +88,10 @@ $(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
 SOURCES += $(SRC)
 OBJECTS += $(OBJ)
 
-$(OUT_DIR)/$(LIB_DIR)/$1: $(OBJ) $(ARV)
+$(OUT_DIR)/$(LIB_DIR)/$1:: $(BLDFILE)
+	$(TOUCH) -c $(SRC) TEMP -d "$(SYNC_TIME)"
+
+$(OUT_DIR)/$(LIB_DIR)/$1:: $(OBJ) $(ARV)
 	$(AR) $(ARFLAGS) $$@ $$^
 
 endef
@@ -99,7 +105,10 @@ $(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
 SOURCES += $(SRC)
 OBJECTS += $(OBJ)
 
-$(OUT_DIR)/$1: $(OBJ) $(ARV)
+$(OUT_DIR)/$1:: $(BLDFILE)
+	$(TOUCH) -c $(SRC) TEMP -d "$(SYNC_TIME)"
+
+$(OUT_DIR)/$1:: $(OBJ) $(ARV)
 	$(CC) -o $$@ $$^
 
 endef
@@ -236,10 +245,8 @@ example:
 # -----------------------------------------------------------------------------
 # Include
 # -----------------------------------------------------------------------------
-ifneq "$(MAKECMDGOALS)" "clean"
-ifneq "$(MAKECMDGOALS)" "cleanall"
+ifeq "$(findstring $(MAKECMDGOALS),clean cleanall)" ""
 -include $(DEPENDENCIES)
-endif
 endif
 
 endif # else of "$(words $(LIBRARIES))" "$(call get-number-of-libraries)"

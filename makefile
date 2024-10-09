@@ -52,7 +52,7 @@ get-library-dir = $(addprefix $(LIB_DIR)/,$1)
 # $(call get-library-file,library-list) -> library-file-list
 get-library-file = $(addsuffix .a,$(addprefix $(OUT_DIR)/$(LIB_DIR)/,$1))
 
-# $(call get-library-source,library-dir) -> source-list
+# $(call get-library-source,library-dir) -> library-source-list
 get-library-source = $(subst $(LIB_DIR)/$1/$(SRC_DIR)/main.c,,$(wildcard $(LIB_DIR)/$1/$(SRC_DIR)/*.c))
 
 # $(call source-to-object,source-list) -> object-list

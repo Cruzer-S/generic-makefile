@@ -29,6 +29,7 @@ CAT := cat
 TOUCH := touch
 CTAGS := ctags
 CSCOPE := cscope -b
+BEAR := bear
 
 # Variables 
 SOURCES :=
@@ -43,7 +44,10 @@ OUTPUT ?= program
 
 CSCOPE_FILE_OUT := cscope.files
 CSCOPE_DB_OUT := cscope.out
+
 CTAGS_OUT := tags
+
+COMPILE_DB_OUT := compile_commands.json
 
 # Constants
 SYNC_TIME := $(shell date)
@@ -220,6 +224,10 @@ cscope: $(SOURCES) $(INCLUDES)
 	echo "$(SOURCES) $(INCLUDES)" > $(CSCOPE_FILE_OUT)
 	$(CSCOPE) -i $(CSCOPE_FILE_OUT) -f $(CSCOPE_DB_OUT)
 
+.PHONY: bear
+bear: clean
+	$(BEAR) --output $(COMPILE_DB_OUT) -- $(MAKE) all
+
 .PHONY: all
 all: build
 
@@ -227,7 +235,7 @@ all: build
 clean:
 	$(RM) -r $(OUT_DIR)
 	$(RM) -r $(addprefix $(INC_DIR)/,$(dir $(LIBRARIES)))
-	$(RM) $(CSCOPE_DB_OUT) $(CSCOPE_FILE_OUT) $(CTAGS_OUT)
+	$(RM) $(CSCOPE_DB_OUT) $(CSCOPE_FILE_OUT) $(CTAGS_OUT) $(COMPILE_DB_OUT)
 
 .PHONY: cleanll
 cleanall: clean

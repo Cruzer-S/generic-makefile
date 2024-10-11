@@ -8,7 +8,7 @@ INC_DIR := include
 OUT_DIR := output
 CNF_DIR := config
 
-# Configs 
+# Configures
 LIBFILE := $(CNF_DIR)/library.mk
 RUNFILE := $(CNF_DIR)/run.mk
 BLDFILE := $(CNF_DIR)/build.mk
@@ -28,15 +28,22 @@ LN := ln -s
 CAT := cat
 TOUCH := touch
 CTAGS := ctags
+CSCOPE := cscope -b
 
 # Variables 
 SOURCES :=
 OBJECTS :=
+INCLUDES :=
 DEPENDENCIES :=
 
 LIBRARIES := $(file < $(LIBFILE))
 
+# Output
 OUTPUT ?= program
+
+CSCOPE_FILE_OUT := cscope.files
+CSCOPE_DB_OUT := cscope.out
+CTAGS_OUT := tags
 
 # Constants
 SYNC_TIME := $(shell date)
@@ -87,6 +94,7 @@ $(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
 
 SOURCES += $(SRC)
 OBJECTS += $(OBJ)
+INCLUDES += $(wildcard $2/$(INC_DIR)/*.h)
 
 $(OUT_DIR)/$(LIB_DIR)/$1:: $(BLDFILE)
 	$(TOUCH) -c $(SRC) TEMP -d "$(SYNC_TIME)"
@@ -104,6 +112,7 @@ $(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
 
 SOURCES += $(SRC)
 OBJECTS += $(OBJ)
+INCLUDES += $(wildcard $2/$(INC_DIR)/*.h)
 
 $(OUT_DIR)/$1:: $(BLDFILE)
 	$(TOUCH) -c $(SRC) TEMP -d "$(SYNC_TIME)"
@@ -203,8 +212,13 @@ help:
 	$(PR) --omit-pagination --width=80 --columns=4
 
 .PHONY: tags
-tags:
-	$(CTAGS) -R
+tags: $(SOURCES) $(INCLUDES)
+	$(CTAGS) -f $(CTAGS_OUT) $^ 
+
+.PHONY: cscope
+cscope: $(SOURCES) $(INCLUDES)
+	echo "$(SOURCES) $(INCLUDES)" > $(CSCOPE_FILE_OUT)
+	$(CSCOPE) -i $(CSCOPE_FILE_OUT) -f $(CSCOPE_DB_OUT)
 
 .PHONY: all
 all: build
@@ -213,6 +227,7 @@ all: build
 clean:
 	$(RM) -r $(OUT_DIR)
 	$(RM) -r $(addprefix $(INC_DIR)/,$(dir $(LIBRARIES)))
+	$(RM) $(CSCOPE_DB_OUT) $(CSCOPE_FILE_OUT) $(CTAGS_OUT)
 
 .PHONY: cleanll
 cleanall: clean

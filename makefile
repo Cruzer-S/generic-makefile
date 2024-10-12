@@ -245,7 +245,7 @@ clean:
 	$(RM) -r $(addprefix $(INC_DIR)/,$(dir $(LIBRARIES)))
 	$(RM) $(CSCOPE_DB_OUT) $(CSCOPE_FILE_OUT) $(CTAGS_OUT) $(COMPILE_DB_OUT)
 
-.PHONY: cleanll
+.PHONY: cleanall
 cleanall: clean
 	$(RM) -r $(LIB_DIR)
 

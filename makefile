@@ -96,6 +96,7 @@ $(eval SRC := $(patsubst %/main.c,,$(call get-source-file,$2)))
 $(eval OBJ := $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$(SRC))))
 $(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
 
+ifneq "$(SRC)" ""
 SOURCES += $(SRC)
 OBJECTS += $(OBJ)
 INCLUDES += $(wildcard $2/$(INC_DIR)/*.h)
@@ -105,6 +106,12 @@ $(OUT_DIR)/$(LIB_DIR)/$1:: $(BLDFILE)
 
 $(OUT_DIR)/$(LIB_DIR)/$1:: $(OBJ) $(ARV)
 	$(AR) $(ARFLAGS) $$@ $$^
+
+else
+$(OUT_DIR)/$(LIB_DIR)/$1:
+	$(TOUCH) $$@
+
+endif
 
 endef
 
@@ -170,6 +177,7 @@ create_output_dir := $(shell												\
 # Rules 
 # -----------------------------------------------------------------------------
 # Libraries
+
 $(foreach l,$(LIBRARIES),													\
 	$(eval $(call make-library,$l.a,$(LIB_DIR)/$l))							\
 )

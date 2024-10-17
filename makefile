@@ -37,7 +37,7 @@ OBJECTS :=
 INCLUDES :=
 DEPENDENCIES :=
 
-LIBRARIES := $(file < $(LIBFILE)) $(foreach u,$(wildcard $(LIB_DIR)/*),$(wildcard $u/*))
+LIBRARIES := $(file < $(LIBFILE)) $(patsubst $(LIB_DIR)/%,%,$(foreach u,$(wildcard $(LIB_DIR)/*),$(wildcard $u/*)))
 
 # Output
 OUTPUT ?= program

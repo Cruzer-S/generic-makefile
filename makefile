@@ -271,7 +271,7 @@ example:
 	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/$(SRC_DIR)/main.c
 	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/$(BLDFILE)
 
-	$(MV) $(BLDFILE) $(CNF_DIR)
+	$(MV) $(notdir $(BLDFILE)) $(CNF_DIR)/
 	$(MV) main.c $(SRC_DIR)
 # -----------------------------------------------------------------------------
 # Include

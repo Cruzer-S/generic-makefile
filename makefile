@@ -243,11 +243,11 @@ all: build
 clean:
 	$(RM) -r $(OUT_DIR)
 	$(RM) -r $(addprefix $(INC_DIR)/,$(dir $(LIBRARIES)))
-	$(RM) $(CSCOPE_DB_OUT) $(CSCOPE_FILE_OUT) $(CTAGS_OUT) $(COMPILE_DB_OUT)
 
 .PHONY: cleanall
 cleanall: clean
 	$(RM) -r $(LIB_DIR)
+	$(RM) $(CSCOPE_DB_OUT) $(CSCOPE_FILE_OUT) $(CTAGS_OUT) $(COMPILE_DB_OUT)
 
 .PHONY: variables
 variables:

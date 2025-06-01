@@ -90,6 +90,26 @@ get-number-of-libraries = $(words 											\
 	$(foreach u,$(wildcard $(LIB_DIR)/*),$(wildcard $u/*))					\
 )
 
+# $(call make-shared-library,name,soname,dir)
+define make-shared-library
+$(eval SRC := $(patsubst %/main.c,,$(call get-source-file,$3)))
+$(eval OBJ := $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$(SRC))))
+$(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$3)))
+
+SOURCES += $(SRC)
+OBJECTS += $(OBJ)
+INCLUDES += $(wildcard $3/$(INC_DIR)/*.h)
+
+CFLAGS += -fPIC
+
+$(OUT_DIR)/$1:: $(BLDFILE)
+	$(TOUCH) -c $(SRC) TEMP -d "$(SYNC_TIME)"
+
+$(OUT_DIR)/$1:: $(OBJ) $(ARV)
+	$(CC) -o $$@ $$^ $$(LDFLAGS) -shared $(LDLIBS) -Wl,-soname,$2
+
+endef
+
 # $(call make-library,name,dir)
 define make-library
 $(eval SRC := $(patsubst %/main.c,,$(call get-source-file,$2)))
@@ -183,7 +203,11 @@ $(foreach l,$(LIBRARIES),													\
 )
 
 # Output
+ifneq ($(patsubst %.so,%,$(OUTPUT)),$(OUTPUT))
+$(eval $(call make-shared-library,$(OUTPUT),$(SONAME),.))
+else
 $(eval $(call make-program,$(OUTPUT),.))
+endif
 
 DEPENDENCIES := $(patsubst %.o,%.d,$(OBJECTS))
 # -----------------------------------------------------------------------------

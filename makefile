@@ -56,6 +56,7 @@ SYNC_TIME := $(shell date)
 .DEFAULT_GOAL = help
 
 -include $(BLDFILE)
+-include $(RUNFILE)
 
 # -----------------------------------------------------------------------------
 # Functions
@@ -287,7 +288,7 @@ install:
 
 .PHONY: run
 run: $(OUT_DIR)/$(OUTPUT)
-	@./$(OUT_DIR)/$(OUTPUT) $(file < $(RUNFILE))
+	@$(ENVIRONMENTS) ./$(OUT_DIR)/$(OUTPUT) $(ARGUMENTS)
 
 .PHONY: example
 example:

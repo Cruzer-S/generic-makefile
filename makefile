@@ -1,19 +1,19 @@
 # -----------------------------------------------------------------------------
 # Variables
 # -----------------------------------------------------------------------------
-#  Layout
-LIB_DIR := library
+# Layout
 SRC_DIR := source
 INC_DIR := include
-OUT_DIR := output
 CNF_DIR := config
+OUT_DIR := output
+LIB_DIR := library
 
-# Configures
+# Configure
 LIBFILE := $(CNF_DIR)/library.mk
 RUNFILE := $(CNF_DIR)/run.mk
 BLDFILE := $(CNF_DIR)/build.mk
 
-#  Program
+# Program
 MKDIR := mkdir -p
 WGET := wget
 RM := rm -f
@@ -31,20 +31,19 @@ CTAGS := ctags
 CSCOPE := cscope -b
 BEAR := bear
 
-# Variables 
+# Variable
 SOURCES :=
 OBJECTS :=
 INCLUDES :=
 DEPENDENCIES :=
 
-LIBRARIES := $(file < $(LIBFILE)) $(patsubst $(LIB_DIR)/%,%,$(foreach u,$(wildcard $(LIB_DIR)/*),$(wildcard $u/*)))
+LIBRARIES :=
 
 # Output
-OUTPUT ?= program
+OUTPUT := program
 
 CSCOPE_FILE_OUT := cscope.files
 CSCOPE_DB_OUT := cscope.out
-
 CTAGS_OUT := tags
 
 COMPILE_DB_OUT := compile_commands.json
@@ -55,122 +54,238 @@ SYNC_TIME := $(shell LC_ALL=C date)
 # Internal
 .DEFAULT_GOAL = help
 
--include $(BLDFILE)
--include $(RUNFILE)
-
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
-# $(call get-source-file,dir) -> source-list
-get-source-file = $(wildcard $1/$(SRC_DIR)/*.c)
-
-# $(call get-archive-file,dir) -> archive-list
-get-archive-file = $(addsuffix .a,$(file < $1/$(LIBFILE)))
-
-# $(call get-include-path,from-source) -> include-path
-get-include-path = $(patsubst %$(SRC_DIR)/,%$(INC_DIR)/,$(dir $1))
-
-# $(call create-symlink,base-dir,target-dir,name)
-create-symlink = $(shell													\
-	$(MKDIR) $1;															\
-	$(TEST) -L $(strip $1)/$(strip $3) || 									\
-	$(LN) $$(realpath -m --relative-to $1 $2) $(strip $1)/$(strip $3)		\
-)
-
-# $(call create-include-dir,base-dir)
-create-include-dir = $(foreach d,$(file < $1/$(LIBFILE)),					\
-	$(call create-symlink,													\
-		$(patsubst %/,%,$1/$(INC_DIR)/$(dir $d)),							\
-		$(LIB_DIR)/$d/$(INC_DIR),											\
-		$(notdir $d)														\
-	)																		\
-)
-
-# $(call get-number-of-libraries)
-get-number-of-libraries = $(words 											\
-	$(foreach u,$(wildcard $(LIB_DIR)/*),$(wildcard $u/*))					\
-)
-
-# $(call make-shared-library,name,soname,dir)
-define make-shared-library
-$(eval SRC := $(patsubst %/main.c,,$(call get-source-file,$3)))
-$(eval OBJ := $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$(SRC))))
-$(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$3)))
-
-SOURCES += $(SRC)
-OBJECTS += $(OBJ)
-INCLUDES += $(wildcard $3/$(INC_DIR)/*.h)
-
-CFLAGS += -fPIC
-
-$(OUT_DIR)/$1:: $(BLDFILE)
-	$(TOUCH) -c $(SRC) TEMP -d "$(SYNC_TIME)"
-
-$(OUT_DIR)/$1:: $(OBJ) $(ARV)
-	$(CC) -o $$@ $$^ $$(LDFLAGS) -shared $(LDLIBS) -Wl,-soname,$2
-
+# $(call loop-pairs,pairs...,func)
+first_one = $1
+second_one = $2
+define loop-pairs
+$(if $(word 2,$(1)),														\
+	 $(call $(2),$(word 1,$(1)),$(word 2,$(1)))								\
+	 $(call loop-pairs,$(wordlist 3,$(words $(1)),$(1)),$(2)))
 endef
 
-# $(call make-library,name,dir)
-define make-library
-$(eval SRC := $(patsubst %/main.c,,$(call get-source-file,$2)))
-$(eval OBJ := $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$(SRC))))
-$(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
+# $(call get-source-file,dir,ext) -> source-list
+get-source-file = $(wildcard $1/$(SRC_DIR)/*$2)
 
-ifneq "$(SRC)" ""
-SOURCES += $(SRC)
-OBJECTS += $(OBJ)
-INCLUDES += $(wildcard $2/$(INC_DIR)/*.h)
+# $(call check-library) -> number of required libraries if zero then empty
+check-library =	$(filter-out 												\
+	$(wildcard $(LIB_DIR)/*/*),												\
+	$(addprefix $(LIB_DIR)/,$(sort											\
+		$(foreach f,$(wildcard $(LIB_DIR)/*/*/$(LIBFILE)),					\
+			$(call loop-pairs,$(file < $f),first_one)						\
+		)																	\
+		$(call loop-pairs,$(file < $(LIBFILE)),first_one)					\
+	))																		\
+)
 
-$(OUT_DIR)/$(LIB_DIR)/$1:: $(BLDFILE)
-	$(TOUCH) -c $(SRC) TEMP -d "$(SYNC_TIME)"
+define __get-library-list
+$(if $(filter $2,static),$(addsuffix .a,$1),$(addsuffix .so,$1))
+endef
 
-$(OUT_DIR)/$(LIB_DIR)/$1:: $(OBJ) $(ARV)
-	$(AR) $(ARFLAGS) $$@ $$^
+# $(call get-library-file,dir) -> *(.a|.so)-list
+define get-library-list
+$(call loop-pairs,$(file < $1/$(LIBFILE)),__get-library-list)
+endef
+
+# $(call get-include-path,dir) -> include-path-list
+define get-include-path
+$(addsuffix /$(INC_DIR),$(addprefix $(LIB_DIR)/, 							\
+	$(call loop-pairs,$(file < $1/$(LIBFILE)),first_one) 					\
+))																			\
+$1/$(INC_DIR)
+endef
+
+# $(eval $(call make-shared-library,library-dir,output-dir,output))
+define make-shared-library
+$(eval -include $1/$(BLDFILE))
+
+$(eval C_SRC := $(patsubst %/main.c,,$(call get-source-file,$1,.c)))
+$(eval CXX_SRC := $(patsubst %/main.cpp,,$(call get-source-file,$1,.cpp)))
+
+$(eval C_OBJ := $(addprefix $2/,$(patsubst %.c,%.o,$(C_SRC))))
+$(eval CXX_OBJ := $(addprefix $2/,$(patsubst %.cpp,%.o,$(CXX_SRC))))
+
+$(eval C_DEP := $(patsubst %.o,%.d,$(C_OBJ)))
+$(eval CXX_DEP := $(patsubst %.o,%.d,$(CXX_OBJ)))
+
+$(eval LIB := $(addprefix $2/$(LIB_DIR)/,$(call get-library-list,$1)))
+
+ifneq ($(strip $(C_SRC) $(CXX_SRC)),)
+
+SOURCES += $(C_SRC) $(CXX_SRC)
+OBJECTS += $(C_OBJ) $(CXX_OBJ)
+DEPENDENCIES += $(C_DEP) $(CXX_DEP)
+
+$(shell $(MKDIR) $2/$1/$(SRC_DIR))
+
+$(C_OBJ): $2/%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $$< -o $$@ 								\
+		  $(addprefix -I,$(call get-include-path,$1))
+
+$(CXX_OBJ): $2/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $$< -o $$@ 							\
+		  $(addprefix -I,$(call get-include-path,$1))
+
+$(C_DEP): $2/%.d: %.c
+	@$(CC) $(CFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
+		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
+	@$(MV) $$@.tmp $$@
+
+$(CXX_DEP): $2/%.d: %.cpp
+	@$(CXX) $(CXXFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
+		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
+	@$(MV) $$@.tmp $$@
+
+$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(LIB)
+	$(CXX) -shared -o $$@ $$^ $(LDFLAGS) $(LDLIBS)
 
 else
-$(OUT_DIR)/$(LIB_DIR)/$1:
+
+$2/$(LIB_DIR)/$3:
 	$(TOUCH) $$@
 
 endif
 
+$(foreach l,$(call get-library-list,$1),									\
+	$(if $(filter $(suffix $l),.a),											\
+		$(call make-static-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l),\
+		$(call make-shared-library,$l,,)									\
+	)																		\
+)
+
 endef
 
-# $(call make-program,name,dir)
+# $(eval $(call make-static-library,library-dir,output-dir,output))
+define make-static-library
+$(eval -include $1/$(BLDFILE))
+
+$(eval C_SRC := $(patsubst %/main.c,,$(call get-source-file,$1,c)))
+$(eval CXX_SRC := $(patsubst %/main.cpp,,$(call get-source-file,$1,.cpp)))
+
+$(eval C_OBJ := $(addprefix $2/,$(patsubst %.c,%.o,$(C_SRC))))
+$(eval CXX_OBJ := $(addprefix $2/,$(patsubst %.cpp,%.o,$(CXX_SRC))))
+
+$(eval C_DEP := $(patsubst %.o,%.d,$(C_OBJ)))
+$(eval CXX_DEP := $(patsubst %.o,%.d,$(CXX_OBJ)))
+
+$(eval LIB := $(addprefix $2/$(LIB_DIR)/,$(call get-library-list,$1)))
+
+ifneq ($(strip $(C_SRC) $(CXX_SRC)),)
+
+SOURCES += $(C_SRC) $(CXX_SRC)
+OBJECTS += $(C_OBJ) $(CXX_OBJ)
+DEPENDENCIES += $(C_DEP) $(CXX_DEP)
+
+$(shell $(MKDIR) $2/$1/$(SRC_DIR))
+
+$(C_OBJ): $2/%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $$< -o $$@ 								\
+		  $(addprefix -I,$(call get-include-path,$1))
+
+$(CXX_OBJ): $2/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $$< -o $$@ 							\
+		  $(addprefix -I,$(call get-include-path,$1))
+
+$(C_DEP): $2/%.d: %.c
+	@$(CC) $(CFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
+		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
+	@$(MV) $$@.tmp $$@
+
+$(CXX_DEP): $2/%.d: %.cpp
+	@$(CXX) $(CXXFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
+		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
+	@$(MV) $$@.tmp $$@
+
+$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(LIB)
+	$(AR) $(ARFLAGS) $$@ $$^
+
+else
+
+$2/$(LIB_DIR)/$3:
+	$(TOUCH) $$@
+
+endif
+
+$(foreach l,$(call get-library-list,$1),									\
+	$(if $(filter $(suffix $l),.a),											\
+		$(call make-static-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l),\
+		$(call make-shared-library,$l,,)									\
+	)																		\
+)
+
+endef
+
+# $(eval $(call make-program,program-dir,out-dir,output))
 define make-program
-$(eval SRC := $(call get-source-file,$2))
-$(eval OBJ := $(addprefix $(OUT_DIR)/,$(patsubst %.c,%.o,$(SRC))))
-$(eval ARV := $(addprefix $(OUT_DIR)/$(LIB_DIR)/,$(call get-archive-file,$2)))
+$(eval -include $1/$(BLDFILE))
 
-SOURCES += $(SRC)
-OBJECTS += $(OBJ)
-INCLUDES += $(wildcard $2/$(INC_DIR)/*.h)
+$(eval C_SRC := $(call get-source-file,$1,.c))
+$(eval CXX_SRC := $(call get-source-file,$1,.cpp))
 
-$(OUT_DIR)/$1:: $(BLDFILE)
-	$(TOUCH) -c $(SRC) TEMP -d "$(SYNC_TIME)"
+$(eval C_OBJ := $(addprefix $2/,$(patsubst %.c,%.o,$(C_SRC))))
+$(eval CXX_OBJ := $(addprefix $2/,$(patsubst %.cpp,%.o,$(CXX_SRC))))
 
-$(OUT_DIR)/$1:: $(OBJ) $(ARV)
-	$(CC) -o $$@ $$^ $(LDLIBS)
+$(eval C_DEP := $(patsubst %.o,%.d,$(C_OBJ)))
+$(eval CXX_DEP := $(patsubst %.o,%.d,$(CXX_OBJ)))
+
+$(eval LIB := $(addprefix $2/$(LIB_DIR)/,$(call get-library-list,$1)))
+
+SOURCES += $(C_SRC) $(CXX_SRC)
+OBJECTS += $(C_OBJ) $(CXX_OBJ)
+DEPENDENCIES += $(C_DEP) $(CXX_DEP)
+
+$(shell $(MKDIR) $2/$(SRC_DIR))
+
+$2/%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $$< -o $$@ 								\
+		  $(addprefix -I,$(call get-include-path,$1))
+
+$2/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $$< -o $$@ 							\
+		  $(addprefix -I,$(call get-include-path,$1))
+
+$2/%.d: %.c
+	@$(CC) $(CFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
+		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
+	@$(MV) $$@.tmp $$@
+
+$2/%.d: %.cpp
+	@$(CXX) $(CXXFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
+		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
+	@$(MV) $$@.tmp $$@
+
+$2/$3:: $(C_OBJ) $(CXX_OBJ) $(LIB)
+	$(CXX) $(LDFLAGS) -o $$@ $$^ $(LDLIBS)
+
+$(foreach l,$(call get-library-list,$1),									\
+	$(if $(filter $(suffix $l),.a),											\
+		$(call make-static-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l),\
+		$(call make-shared-library,$l,,)									\
+	)																		\
+)
 
 endef
 
 # -----------------------------------------------------------------------------
 # Preprocessing
 # -----------------------------------------------------------------------------
-$(call create-include-dir,.)
 
-$(foreach l,$(LIBRARIES),													\
-	$(eval LIBRARIES := $(sort												\
-		$(LIBRARIES) $(file < $(LIB_DIR)/$l/$(LIBFILE))						\
-	))																		\
-)
+$(info $(strip $(call check-library)))
+ifneq ($(strip $(call check-library)),)
 
-ifneq "$(words $(LIBRARIES))" "$(call get-number-of-libraries)"
-
-download_libraries := $(foreach l,$(LIBRARIES),								\
-	$(shell test -d $(LIB_DIR)/$l 											\
-		 || git clone https://github.com/$l $(LIB_DIR)/$l)					\
-	$(call create-include-dir,$(LIB_DIR)/$l)								\
+$(foreach l,$(call check-library),											\
+	$(shell git clone --depth=1 											\
+					  https://github.com/$(patsubst $(LIB_DIR)/%,%,$l)		\
+					  $l													\
+	)																		\
 )
 
 .PHONY: FORCE
@@ -179,52 +294,12 @@ FORCE:
 %:: FORCE
 	@$(MAKE) $@
 
-else # ifneq "$(words $(LIBRARIES))" "$(call get-number-of-libraries)"
-
-create_output_dir := $(shell												\
-	$(MKDIR) $(OUT_DIR);													\
-	$(MKDIR) $(OUT_DIR)/$(SRC_DIR);											\
-	for f in $(sort $(dir $(OBJECTS)));										\
-	do																		\
-		$(TEST) -d $$f 														\
-			|| $(MKDIR) $$f;												\
-	done;																	\
-	for l in $(LIBRARIES);													\
-	do																		\
-		$(MKDIR) $(OUT_DIR)/$(LIB_DIR)/$$l/$(SRC_DIR);						\
-	done																	\
-)
-
-# -----------------------------------------------------------------------------
-# Rules 
-# -----------------------------------------------------------------------------
-# Libraries
-$(foreach l,$(LIBRARIES),													\
-	$(eval $(call make-library,$l.a,$(LIB_DIR)/$l))							\
-)
-
-# Output
-ifneq ($(patsubst %.so,%,$(OUTPUT)),$(OUTPUT))
-$(eval $(call make-shared-library,$(OUTPUT),$(SONAME),.))
 else
-$(eval $(call make-program,$(OUTPUT),.))
-endif
-
-DEPENDENCIES := $(patsubst %.o,%.d,$(OBJECTS))
 
 # -----------------------------------------------------------------------------
-# Recipes 
+# Rules
 # -----------------------------------------------------------------------------
-$(OBJECTS): $(OUT_DIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 								\
-		  -I$(call get-include-path,$<)
-
-$(DEPENDENCIES): $(OUT_DIR)/%.d: %.c
-	@$(CC) $(CFLAGS) -I$(call get-include-path,$<)							\
-		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $<	| 						\
-	$(SED) 's,\($(notdir $*)\.o\) *:,$(dir $@)\1 $@: ,' > $@.tmp
-	@$(MV) $@.tmp $@
-
+$(eval $(call make-program,.,$(OUT_DIR),$(OUTPUT)))
 # -----------------------------------------------------------------------------
 # Commands
 # -----------------------------------------------------------------------------
@@ -236,9 +311,9 @@ compile: $(OBJECTS)
 
 .PHONY: update
 update:
-	for l in $(sort $(LIBRARIES));			\
-	do										\
-		(cd $(LIB_DIR)/$$l; git pull)		\
+	for l in $(sort $(LIBRARIES));											\
+	do																		\
+		(cd $(LIB_DIR)/$$l; git pull)										\
     done
 
 .PHONY: help
@@ -269,7 +344,6 @@ all: build
 .PHONY: clean
 clean:
 	$(RM) -r $(OUT_DIR)
-	$(RM) -r $(addprefix $(INC_DIR)/,$(dir $(LIBRARIES)))
 
 .PHONY: cleanall
 cleanall: clean
@@ -293,19 +367,18 @@ run: $(OUT_DIR)/$(OUTPUT)
 .PHONY: example
 example:
 	$(MKDIR) $(SRC_DIR) $(INC_DIR) $(LIB_DIR) $(CNF_DIR)
-	$(TOUCH) $(LIBFILE) $(RUNFILE)
+	$(TOUCH) $(DEPFILE) $(RUNFILE)
 
 	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/$(SRC_DIR)/main.c
 	$(WGET) https://raw.githubusercontent.com/Cruzer-S/generic-makefile/main/$(BLDFILE)
 
 	$(MV) $(notdir $(BLDFILE)) $(CNF_DIR)/
 	$(MV) main.c $(SRC_DIR)
-
 # -----------------------------------------------------------------------------
 # Include
 # -----------------------------------------------------------------------------
-ifeq "$(findstring $(MAKECMDGOALS),clean cleanall)" ""
+ifeq ($(filter clean cleanall bear,$(MAKECMDGOALS)),)
 -include $(DEPENDENCIES)
 endif
 
-endif # else of "$(words $(LIBRARIES))" "$(call get-number-of-libraries)"
+endif

@@ -1,8 +1,16 @@
-#include <stdio.h>
+#include "test.hpp"
 
-int main(int argc, char *argv[])
+#include "logger.h"
+
+int main(void)
 {
-	printf("hello, world!\n");
+	logger_initialize();
+
+	test();
+
+	log(INFO, "test");
+
+	logger_destroy();
 
 	return 0;
 }

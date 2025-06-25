@@ -1,2 +1,2 @@
 CC := gcc
-ARFLAGS := rcsT
+CXX := g++

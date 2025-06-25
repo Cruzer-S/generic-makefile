@@ -13,7 +13,7 @@ LIBFILE := $(CNF_DIR)/library.mk
 RUNFILE := $(CNF_DIR)/run.mk
 BLDFILE := $(CNF_DIR)/build.mk
 
-PIC_FOR_SHARED ?= 0
+PIC_FOR_SHARED ?=
 
 # Program
 MKDIR := mkdir -p
@@ -285,8 +285,6 @@ endef
 # -----------------------------------------------------------------------------
 # Preprocessing
 # -----------------------------------------------------------------------------
-
-$(info $(strip $(call check-library)))
 ifneq ($(strip $(call check-library)),)
 
 $(foreach l,$(call check-library),											\

@@ -13,6 +13,8 @@ LIBFILE := $(CNF_DIR)/library.mk
 RUNFILE := $(CNF_DIR)/run.mk
 BLDFILE := $(CNF_DIR)/build.mk
 
+PIC_FOR_SHARED ?= 0
+
 # Program
 MKDIR := mkdir -p
 WGET := wget
@@ -102,6 +104,7 @@ endef
 # $(eval $(call make-shared-library,library-dir,output-dir,output))
 define make-shared-library
 $(eval -include $1/$(BLDFILE))
+$(eval override PIC_FOR_SHARED := 1)
 
 $(eval C_SRC := $(patsubst %/main.c,,$(call get-source-file,$1,.c)))
 $(eval CXX_SRC := $(patsubst %/main.cpp,,$(call get-source-file,$1,.cpp)))
@@ -165,6 +168,9 @@ endef
 define make-static-library
 $(eval -include $1/$(BLDFILE))
 
+$(eval STATIC_CFLAGS := $(CFLAGS) $(if $(PIC_FOR_SHARED),-fPIC,))
+$(eval STATIC_CXXFLAGS := $(CXXFLAGS) $(if $(PIC_FOR_SHARED),-fPIC,))
+
 $(eval C_SRC := $(patsubst %/main.c,,$(call get-source-file,$1,c)))
 $(eval CXX_SRC := $(patsubst %/main.cpp,,$(call get-source-file,$1,.cpp)))
 
@@ -185,23 +191,25 @@ DEPENDENCIES += $(C_DEP) $(CXX_DEP)
 $(shell $(MKDIR) $2/$1/$(SRC_DIR))
 
 $(C_OBJ): $2/%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $$< -o $$@ 								\
+	$(CC) $(STATIC_CFLAGS) $(CFLAGS) $(CPPFLAGS) -c $$< -o $$@ 				\
 		  $(addprefix -I,$(call get-include-path,$1))
 
 $(CXX_OBJ): $2/%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $$< -o $$@ 							\
+	$(CXX) $(STATIC_CXXFLAGS) $(CXXFLAGS) $(CPPFLAGS) -c $$< -o $$@ 		\
 		  $(addprefix -I,$(call get-include-path,$1))
 
 $(C_DEP): $2/%.d: %.c
-	@$(CC) $(CFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+	@$(CC) $(STATIC_CFLAGS) $(CFLAGS) 										\
+		   $(addprefix -I,$(call get-include-path,$1))						\
 		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
 		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
 	@$(MV) $$@.tmp $$@
 
 $(CXX_DEP): $2/%.d: %.cpp
-	@$(CXX) $(CXXFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
-		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
-		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
+	@$(CXX) $(STATIC_CXXFLAGS) $(CXXFLAGS)									\
+			$(addprefix -I,$(call get-include-path,$1))						\
+			$(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	|						\
+			$(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
 	@$(MV) $$@.tmp $$@
 
 $2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(LIB)

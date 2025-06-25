@@ -158,7 +158,7 @@ endif
 $(foreach l,$(call get-library-list,$1),									\
 	$(if $(filter $(suffix $l),.a),											\
 		$(call make-static-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l),\
-		$(call make-shared-library,$(LID_DIR)/$(basename $l),$(OUT_DIR),$l)	\
+		$(call make-shared-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l)	\
 	)																		\
 )
 
@@ -225,7 +225,7 @@ endif
 $(foreach l,$(call get-library-list,$1),									\
 	$(if $(filter $(suffix $l),.a),											\
 		$(call make-static-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l),\
-		$(call make-shared-library,$(LID_DIR)/$(basename $l),$(OUT_DIR),$l)	\
+		$(call make-shared-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l)	\
 	)																		\
 )
 
@@ -276,7 +276,7 @@ $2/$3:: $(C_OBJ) $(CXX_OBJ) $(LIB)
 $(foreach l,$(call get-library-list,$1),									\
 	$(if $(filter $(suffix $l),.a),											\
 		$(call make-static-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l),\
-		$(call make-shared-library,$(LID_DIR)/$(basename $l),$(OUT_DIR),$l)	\
+		$(call make-shared-library,$(LIB_DIR)/$(basename $l),$(OUT_DIR),$l)	\
 	)																		\
 )
 

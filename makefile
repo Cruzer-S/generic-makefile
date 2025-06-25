@@ -54,6 +54,8 @@ SYNC_TIME := $(shell LC_ALL=C date)
 # Internal
 .DEFAULT_GOAL = help
 
+# $(OUTPUT) can be overrided
+-include $(BLDFILE)
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
@@ -121,21 +123,21 @@ DEPENDENCIES += $(C_DEP) $(CXX_DEP)
 $(shell $(MKDIR) $2/$1/$(SRC_DIR))
 
 $(C_OBJ): $2/%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $$< -o $$@ 								\
+	$(CC) -fPIC $(CFLAGS) $(CPPFLAGS) -c $$< -o $$@ 						\
 		  $(addprefix -I,$(call get-include-path,$1))
 
 $(CXX_OBJ): $2/%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $$< -o $$@ 							\
-		  $(addprefix -I,$(call get-include-path,$1))
+	$(CXX) -fPIC $(CXXFLAGS) $(CPPFLAGS) -c $$< -o $$@ 						\
+		  $(addprefix -I,$(call get-include-path,$1)))
 
 $(C_DEP): $2/%.d: %.c
-	@$(CC) $(CFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+	@$(CC) -fPIC $(CFLAGS) $(addprefix -I,$(call get-include-path,$1))		\
 		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
 		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
 	@$(MV) $$@.tmp $$@
 
 $(CXX_DEP): $2/%.d: %.cpp
-	@$(CXX) $(CXXFLAGS) $(addprefix -I,$(call get-include-path,$1))			\
+	@$(CXX) -fPIC $(CXXFLAGS) $(addprefix -I,$(call get-include-path,$1))	\
 		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
 		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
 	@$(MV) $$@.tmp $$@
@@ -223,8 +225,6 @@ endef
 
 # $(eval $(call make-program,program-dir,out-dir,output))
 define make-program
-$(eval -include $1/$(BLDFILE))
-
 $(eval C_SRC := $(call get-source-file,$1,.c))
 $(eval CXX_SRC := $(call get-source-file,$1,.cpp))
 

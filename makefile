@@ -110,7 +110,7 @@ $(addsuffix /$(INC_DIR),$(addprefix $(LIB_DIR)/, 							\
 $1/$(INC_DIR)
 endef
 
-# $(eval $(call make-XXX,base-dir,out-dir,fPIC))
+# $(eval $(call make-XXX,base-dir,out-dir,fPIC,main))
 define make-XXX
 $(eval C_SRC := $(call get-source-file,$1,.c))
 $(eval CXX_SRC := $(call get-source-file,$1,.cpp))
@@ -142,18 +142,18 @@ $(CXX_OBJ): $2/%.o: %.cpp
 		  $(addprefix -I,$(call get-include-path,$1))
 
 $(C_DEP): $2/%.d: %.c
-	$(CC) $(if $3,-fPIC,) $(CFLAGS) 										\
+	@$(CC) $(if $3,-fPIC,) $(CFLAGS) 										\
 		   $(addprefix -I,$(call get-include-path,$1))						\
 		   $(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	| 						\
 		   $(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
-	$(MV) $$@.tmp $$@
+	@$(MV) $$@.tmp $$@
 
 $(CXX_DEP): $2/%.d: %.cpp
-	$(CXX) $(if $3,-fPIC,) $(CXXFLAGS)										\
+	@$(CXX) $(if $3,-fPIC,) $(CXXFLAGS)										\
 			$(addprefix -I,$(call get-include-path,$1))						\
 			$(CPPFLAGS) $(TARGET_ARCH) -MG -MM $$<	|						\
 			$(SED) 's,\($(notdir $$*)\.o\) *:,$(dir $$@)\1 $$@: ,' > $$@.tmp
-	$(MV) $$@.tmp $$@
+	@$(MV) $$@.tmp $$@
 
 endef
 
@@ -167,9 +167,11 @@ $(eval $(call make-XXX,$1,$2,fPIC))
 $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
-$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) 										\
-				  $(ARVS) $(addprefix $2/,$$($3_ARVS))
-	$(CXX) -shared -o $$@ $$^ $(LDFLAGS) $(LDLIBS)
+$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS)					\
+					     		    | $(LIBS) $(call get-libpath,$$($3_LIBS))
+	$(CXX) $(LDFLAGS) -shared -o $$@ $$^ 									\
+			$(call LIBFLAGS,$(call get-libpath,$$($3_LIBS))	$(LIBS))		\
+			$(LDLIBS)
 
 $(foreach l,$(call get-archive-list,$1),									\
 	$(call make-archive,$(LIB_DIR)/$(basename $l),$2,$l,,$3_ARVS,$3_LIBS)	\
@@ -195,7 +197,7 @@ $2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ)
 
 else
 
-$2/$3:
+$2/$(LIB_DIR)/$3:
 	$(AR) rcs $$@
 
 endif
@@ -222,7 +224,8 @@ $(eval $(call make-XXX,$1,$2,))
 $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
-$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) | $(call get-libpath,$$($3_LIBS)) $(LIBS)
+$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS)								\
+					     | $(LIBS) $(call get-libpath,$$($3_LIBS))
 	$(CXX) $(LDFLAGS) -o $$@ $$^ 											\
 			$(call LIBFLAGS,$(call get-libpath,$$($3_LIBS))	$(LIBS))		\
 			$(LDLIBS)

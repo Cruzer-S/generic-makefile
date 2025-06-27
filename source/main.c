@@ -1,16 +1,12 @@
-#include "test.hpp"
+#include <stdio.h>
 
-#include "logger.h"
+#include "test.h"
 
 int main(void)
 {
-	logger_initialize();
+	printf("generic makefile's main()\n");
 
 	test();
-
-	log(INFO, "test");
-
-	logger_destroy();
 
 	return 0;
 }

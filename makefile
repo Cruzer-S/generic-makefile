@@ -169,7 +169,7 @@ endef
 define make-library
 $(eval -include $1/$(BLDFILE))
 
-$(eval $3_created := yes)
+$(eval $3_created := shared)
 
 $(call make-XXX,$1,$2,fPIC,no-main)
 
@@ -183,7 +183,7 @@ $2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $$($3_LIBS)
 
 $(foreach l,$(call get-archive-list,$1),									\
 	$(if $(filter undefined,$(origin $l_created)),							\
-		$(call make-archive,$(LIB_DIR)/$(basename $l),$2,$l,,				\
+		$(call make-archive,$(LIB_DIR)/$(basename $l),$2,$l,fPIC,			\
 							$3_ARVS,$3_LIBS)								\
 	)																		\
 )
@@ -203,9 +203,9 @@ endef
 define make-archive
 $(eval -include $1/$(BLDFILE))
 
-$(eval $3_created := yes)
+$(eval $3_created := static)
 
-$(call make-XXX,$1,$2,,no-main)
+$(call make-XXX,$1,$2,$(if $4,fPIC),no-main)
 
 ifneq ($(strip $(C_SRC) $(CXX_SRC)),)
 
@@ -222,16 +222,16 @@ endif
 $(eval $5 += $(ARVS))
 $(eval $6 += $(LIBS))
 
-$(foreach l,$(call get-archive-list,$1),									\
-	$(if $(filter undefined,$(origin $l_created)),							\
-		$(call make-archive,$(LIB_DIR)/$(basename $l),$2,$l,,$5,$6)			\
-	)																		\
-)
-
 $(foreach l,$(call get-library-list,$1),									\
 	$(if $(filter undefined,$(origin $l_created)),							\
 		$(call make-library,$(LIB_DIR)/$(dir $l)$(call LIB_NAMES,$l),		\
 							$2,$l,$6)										\
+	)																		\
+)
+
+$(foreach l,$(call get-archive-list,$1),									\
+	$(if $(filter undefined,$(origin $l_created)),							\
+		$(call make-archive,$(LIB_DIR)/$(basename $l),$2,$l,$4,$5,$6)		\
 	)																		\
 )
 
@@ -249,19 +249,19 @@ $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
 $2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
-	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $(LDLIBS) 
-
-$(foreach l,$(call get-archive-list,$1),									\
-	$(if $(filter undefined,$(origin $l_created)),							\
-		$(call make-archive,$(LIB_DIR)/$(basename $l),						\
-							$2,$l,,$3_ARVS,$3_LIBS)							\
-	)																		\
-)
+	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $(LDLIBS)
 
 $(foreach l,$(call get-library-list,$1),									\
 	$(if $(filter undefined,$(origin $l_created)),							\
 		$(call make-library,$(LIB_DIR)/$(dir $l)$(call LIB_NAMES,$l),		\
 							$2,$l,$3_LIBS)									\
+	)																		\
+)
+
+$(foreach l,$(call get-archive-list,$1),									\
+	$(if $(filter undefined,$(origin $l_created)),							\
+		$(call make-archive,$(LIB_DIR)/$(basename $l),						\
+							$2,$l,,$3_ARVS,$3_LIBS)							\
 	)																		\
 )
 

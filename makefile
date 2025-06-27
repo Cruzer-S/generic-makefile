@@ -218,7 +218,7 @@ $(foreach l,$(call get-archive-list,$1),									\
 )
 
 $(foreach l,$(call get-library-list,$1),									\
-	$(call make-library,$(LIB_DIR)/$(call LIB_NAMES,$l),$2,$l)				\
+	$(call make-library,$(LIB_DIR)/$(dir $l)$(call LIB_NAMES,$l),$2,$l,$6)	\
 )
 
 endef

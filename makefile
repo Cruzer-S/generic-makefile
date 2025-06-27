@@ -1,4 +1,3 @@
-.SECONDEXPANSION:
 # -----------------------------------------------------------------------------
 # Variables
 # -----------------------------------------------------------------------------
@@ -82,11 +81,12 @@ check-library =	$(filter-out 												\
 	))																		\
 )
 
-LIB_DIRS = $(sort $(dir $1))
+LIB_DIRS = $(info LIB_DIRS: $1 -> $(dir $1)) $(sort $(dir $1))
 LIB_NAMES = $(patsubst lib%.so,%,$(notdir $1))
 # $(call LIBFLAGS,libraries) -> (-L<path> -l<name>)-list
-LIBFLAGS = $(if $(strip $1),$(addprefix -L,$(call LIB_DIRS,$1)) 			\
-		   $(addprefix -l,$(call LIB_NAMES,$1)),)
+LIBFLAGS = $(info LIBFLAGS: $1) 											\
+		   $(if $(strip $1),$(addprefix -L,$(call LIB_DIRS,$1)) 			\
+		   					$(addprefix -l,$(call LIB_NAMES,$1)))
 
 __get-library-list = $(if $(filter $2,shared),								\
 						  $(addsuffix .so,$(patsubst %$(notdir $1),			\
@@ -94,6 +94,7 @@ __get-library-list = $(if $(filter $2,shared),								\
 __get-archive-list = $(if $(filter $2,static),$(addsuffix .a,$1))
 # $(call get-library-list,dir) -> (lib*.so)-list
 define get-library-list
+$(info get-library-list($1) -> $(call loop-pairs,$(file < $1/$(LIBFILE)),__get-library-list))
 $(call loop-pairs,$(file < $1/$(LIBFILE)),__get-library-list)
 endef
 
@@ -112,6 +113,7 @@ endef
 
 # $(eval $(call make-XXX,base-dir,out-dir,fPIC,no-main))
 define make-XXX
+$(info make-XXX($1,$2,$3,$4))
 $(eval C_SRC :=	$(if $4,													\
 	$(filter-out %/main.c,$(call get-source-file,$1,.c)),					\
 	$(call get-source-file,$1,.c)                                           \
@@ -166,6 +168,8 @@ endef
 
 # $(eval $(call make-library,base-dir,output-dir,name)
 define make-library
+$(info make-library($1,$2,$3))
+
 $(eval -include $1/$(BLDFILE))
 
 $(eval $(call make-XXX,$1,$2,fPIC,no-main))
@@ -173,10 +177,10 @@ $(eval $(call make-XXX,$1,$2,fPIC,no-main))
 $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
-$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS)	\
-					     		    | $(LIBS) $$($3_LIBS)
+$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS)					\
+					     		    | $(LIBS) $($3_LIBS)
 	$(CXX) $(LDFLAGS) -shared -o $$@ $$^ 									\
-			$(call LIBFLAGS,$(LIBS) $$($$3_LIBS))							\
+			$(call LIBFLAGS,$(LIBS) $($3_LIBS))								\
 			$(LDLIBS)
 
 
@@ -193,6 +197,8 @@ endef
 # $(eval $(call make-archive,base-dir,out-dir,name,shared,
 # 							 archives-out,libraries-out))
 define make-archive
+$(info make-archive($1,$2,$3,$4,$5,$6))
+
 $(eval -include $1/$(BLDFILE))
 
 $(eval $(call make-XXX,$1,$2,,no-main))
@@ -224,6 +230,8 @@ endef
 
 # $(eval $(call make-program,base-dir,out-dir,name)
 define make-program
+$(info make-program($1,$2,$3))
+
 $(eval override OUTPUT := $3)
 
 $(eval $(call make-XXX,$1,$2,,))
@@ -231,9 +239,9 @@ $(eval $(call make-XXX,$1,$2,,))
 $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
-$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
+$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $($3_LIBS)
 	$(CXX) $(LDFLAGS) -o $$@ $$^ 											\
-			$(call LIBFLAGS,$(LIBS) $$($3_LIBS))							\
+			$(call LIBFLAGS,$(LIBS) $($3_LIBS))								\
 			$(LDLIBS)
 
 $(foreach l,$(call get-archive-list,$1),									\

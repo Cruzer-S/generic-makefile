@@ -37,7 +37,7 @@ SOURCES :=
 HEADERS :=
 DEPENDENCIES :=
 
-LIBRARIES =
+LIBRARIES :=
 
 # Output
 OUTPUT := program
@@ -112,7 +112,7 @@ $(addsuffix /$(INC_DIR),$(addprefix $(LIB_DIR)/, 							\
 $1/$(INC_DIR)
 endef
 
-# $(eval $(call make-XXX,base-dir,out-dir,fPIC,no-main))
+# $(call make-XXX,base-dir,out-dir,fPIC,no-main)
 define make-XXX
 $(eval C_SRC :=	$(if $4,													\
 	$(filter-out %/main.c,$(call get-source-file,$1,.c)),					\
@@ -165,39 +165,38 @@ $(CXX_DEP): $2/%.d: %.cpp
 
 endef
 
-
-# $(eval $(call make-library,base-dir,output-dir,name)
+# $(call make-library,base-dir,output-dir,name,library-out)
 define make-library
 $(eval -include $1/$(BLDFILE))
 
-$(eval $(call make-XXX,$1,$2,fPIC,no-main))
+$(call make-XXX,$1,$2,fPIC,no-main)
 
-$(eval $3_ARVS =)
-$(eval $3_LIBS =)
+$(eval $4 += $(LIBS))
 
-$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS)					\
-					     		    | $(LIBS) $($3_LIBS)
-	$(CXX) $(LDFLAGS) -shared -o $$@ $$^ 									\
-			$(call LIBFLAGS,$(LIBS) $($3_LIBS))								\
-			$(LDLIBS)
+$(eval $3_ARVS :=)
+$(eval $3_LIBS :=)
 
+$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $$($3_LIBS)
+	$(CXX) $(LDFLAGS) -shared -o $$@ $$^ $$(call LIBFLAGS,$$|) $(LDLIBS)
 
 $(foreach l,$(call get-archive-list,$1),									\
 	$(call make-archive,$(LIB_DIR)/$(basename $l),$2,$l,,$3_ARVS,$3_LIBS)	\
 )
 
 $(foreach l,$(call get-library-list,$1),									\
-	$(call make-library,$(LIB_DIR)/$(call LIB_NAMES,$l),$2,$l)				\
+	$(call make-library,$(LIB_DIR)/$(dir $l)$(call LIB_NAMES,$l),			\
+						$2,$l,$3_LIBS)										\
 )
+
+$(eval $4 += $($3_LIBS))
 
 endef
 
-# $(eval $(call make-archive,base-dir,out-dir,name,shared,
-# 							 archives-out,libraries-out))
+# $(call make-archive,base-dir,out-dir,name,shared,archives-out,libraries-out))
 define make-archive
 $(eval -include $1/$(BLDFILE))
 
-$(eval $(call make-XXX,$1,$2,,no-main))
+$(call make-XXX,$1,$2,,no-main)
 
 ifneq ($(strip $(C_SRC) $(CXX_SRC)),)
 
@@ -232,22 +231,22 @@ $(eval $(call make-XXX,$1,$2,,))
 
 $(eval $4 += $(LIBS))
 
-$(eval $3_ARVS =)
-$(eval $3_LIBS =)
+$(eval $3_ARVS :=)
+$(eval $3_LIBS :=)
 
-$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $($3_LIBS)
-	# $(LIBS) $($3_LIBS)
-	$(CXX) $(LDFLAGS) -o $$@ $$^ 											\
-			$(call LIBFLAGS,$(LIBS) $($3_LIBS))								\
-			$(LDLIBS)
+$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
+	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $(LDLIBS) 
 
 $(foreach l,$(call get-archive-list,$1),									\
 	$(call make-archive,$(LIB_DIR)/$(basename $l),$2,$l,,$3_ARVS,$3_LIBS)	\
 )
 
 $(foreach l,$(call get-library-list,$1),									\
-	$(call make-library,$(LIB_DIR)/$(dir $l)/$(call LIB_NAMES,$l),$2,$l)	\
+	$(call make-library,$(LIB_DIR)/$(dir $l)$(call LIB_NAMES,$l),			\
+						$2,$l,$3_LIBS)										\
 )
+
+$(eval $4 += $($3_LIBS))
 
 endef
 

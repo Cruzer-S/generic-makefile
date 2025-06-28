@@ -95,25 +95,26 @@ LIBFLAGS = $(if $(strip $1),$(addprefix -L,$(call LIB_DIRS,$1)) 			\
 NAME2LIB = $(addsuffix .so,$(patsubst %$(notdir $1),%lib$(notdir $1),$1))
 NAME2ARV = $(addsuffix .a,$1)
 
-__get-library-list = $(if $(filter $2,shared),$(call NAME2LIB,$1))
-# $(call get-library-list,dir) -> (lib*.so)-list :
-define get-library-list
-$(call loop-triplet,$(file < $1/$(LIBFILE)),__get-library-list)
+# $(call get-library-data,dir) -> (name;type;output)-list
+define get-library-data
+$(call loop-triplet,$(file < $1/$(LIBFILE)),return_one)
 endef
 
-__get-archive-list = $(if $(filter $2,static),$(call NAME2ARV,$1))
-# $(call get-archive-list,dir) -> (*.a)-list
+# $(call get-library-list,dir) -> (lib*.so)-list
+define get-library-list
+$(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
+	$(if $(filter $T,shared),$(dir $N)$(call NAME2LIB,$O))					\
+))
+endef
+
 define get-archive-list
-$(call loop-triplet,$(file < $1/$(LIBFILE)),__get-archive-list)
+$(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
+	$(if $(filter $T,static),$(dir $N)$(call NAME2ARV,$O))					\
+))
 endef
 
 define loop-library
 $(call loop-triplet,$(file < $1/$(LIBFILE)),)
-endef
-
-# $(call get-library-data,dir)
-define get-library-data
-$(call loop-triplet,$(file < $1/$(LIBFILE)),return_one)
 endef
 
 # $(call get-include-path,dir) -> include-path-list

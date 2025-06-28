@@ -367,7 +367,7 @@ install:
 .PHONY: run
 run: LD_LIBRARY_PATH:=$(LD_LIBRARY_PATH):$(call get-library-path,$(LIBRARIES))
 run: $(OUT_DIR)/$(OUTPUT)
-	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) $(ENVIRONMENTS) 						\
+	@LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) $(ENVIRONMENTS) 					\
 	./$(OUT_DIR)/$(OUTPUT) $(ARGUMENTS)
 
 .PHONY: example

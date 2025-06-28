@@ -62,10 +62,11 @@ SYNC_TIME := $(shell LC_ALL=C date)
 # $(call loop-pairs,pairs...,func)
 first_one = $1
 second_one = $2
-define loop-pairs
-$(if $(word 2,$(1)),														\
-	 $(call $(2),$(word 1,$(1)),$(word 2,$(1)))								\
-	 $(call loop-pairs,$(wordlist 3,$(words $(1)),$(1)),$(2)))
+third_one = $3
+define loop-triplet
+  $(if $(word 3,$(1)),														\
+	   $(call $(2),$(word 1,$(1)),$(word 2,$(1)),$(word 3,$(1)))			\
+       $(call loop-triplet,$(wordlist 4,$(words $(1)),$(1)),$(2)))
 endef
 
 # $(call get-source-file,dir,ext) -> source-list
@@ -78,9 +79,9 @@ check-library =	$(filter-out 												\
 	$(wildcard $(LIB_DIR)/*/*),												\
 	$(addprefix $(LIB_DIR)/,$(sort											\
 		$(foreach f,$(wildcard $(LIB_DIR)/*/*/$(LIBFILE)),					\
-			$(call loop-pairs,$(file < $f),first_one)						\
+			$(call loop-triplet,$(file < $f),first_one)						\
 		)																	\
-		$(call loop-pairs,$(file < $(LIBFILE)),first_one)					\
+		$(call loop-triplet,$(file < $(LIBFILE)),first_one)					\
 	))																		\
 )
 
@@ -96,18 +97,18 @@ __get-library-list = $(if $(filter $2,shared),								\
 __get-archive-list = $(if $(filter $2,static),$(addsuffix .a,$1))
 # $(call get-library-list,dir) -> (lib*.so)-list
 define get-library-list
-$(call loop-pairs,$(file < $1/$(LIBFILE)),__get-library-list)
+$(call loop-triplet,$(file < $1/$(LIBFILE)),__get-library-list)
 endef
 
 # $(call get-archive-list,dir) -> (*.a)-list
 define get-archive-list
-$(call loop-pairs,$(file < $1/$(LIBFILE)),__get-archive-list)
+$(call loop-triplet,$(file < $1/$(LIBFILE)),__get-archive-list)
 endef
 
 # $(call get-include-path,dir) -> include-path-list
 define get-include-path
 $(addsuffix /$(INC_DIR),$(addprefix $(LIB_DIR)/, 							\
-	$(call loop-pairs,$(file < $1/$(LIBFILE)),first_one) 					\
+	$(call loop-triplet,$(file < $1/$(LIBFILE)),first_one) 					\
 ))																			\
 $1/$(INC_DIR)
 endef

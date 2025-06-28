@@ -63,6 +63,7 @@ SYNC_TIME := $(shell LC_ALL=C date)
 first_one = $1
 second_one = $2
 third_one = $3
+return_one = $1;$2;$3
 define loop-triplet
   $(if $(word 3,$(1)),														\
 	   $(call $(2),$(word 1,$(1)),$(word 2,$(1)),$(word 3,$(1)))			\
@@ -91,19 +92,37 @@ LIB_NAMES = $(patsubst lib%.so,%,$(notdir $1))
 LIBFLAGS = $(if $(strip $1),$(addprefix -L,$(call LIB_DIRS,$1)) 			\
 		   					$(addprefix -l,$(call LIB_NAMES,$1)))
 
-__get-library-list = $(if $(filter $2,shared),								\
-						  $(addsuffix .so,$(patsubst %$(notdir $1),			\
-						  				  %lib$(notdir $1),$1)))
-__get-archive-list = $(if $(filter $2,static),$(addsuffix .a,$1))
-# $(call get-library-list,dir) -> (lib*.so)-list
+NAME2LIB = $(addsuffix .so,$(patsubst %$(notdir $1),%lib$(notdir $1),$1))
+NAME2ARV = $(addsuffix .a,$1)
+
+__get-library-list = $(if $(filter $2,shared),$(call NAME2LIB,$1))
+# $(call get-library-list,dir) -> (lib*.so)-list :
 define get-library-list
 $(call loop-triplet,$(file < $1/$(LIBFILE)),__get-library-list)
 endef
 
+__get-archive-list = $(if $(filter $2,static),$(call NAME2ARV,$1))
 # $(call get-archive-list,dir) -> (*.a)-list
 define get-archive-list
 $(call loop-triplet,$(file < $1/$(LIBFILE)),__get-archive-list)
 endef
+
+define loop-library
+$(call loop-triplet,$(file < $1/$(LIBFILE)),)
+endef
+
+# $(call get-library-data,dir)
+define get-library-data
+$(call loop-triplet,$(file < $1/$(LIBFILE)),return_one)
+endef
+
+$(foreach l,$(call get-library-data,.),										\
+	$(let N T O,$(subst ;, ,$l),											\
+		$(info name: $(call $(if $(filter $T,static),NAME2ARV,NAME2LIB),$N))\
+		$(info type: $T)													\
+		$(info output: $O)													\
+	)																		\
+)
 
 # $(call get-include-path,dir) -> include-path-list
 define get-include-path

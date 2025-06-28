@@ -56,6 +56,8 @@ SYNC_TIME := $(shell LC_ALL=C date)
 
 # $(OUTPUT) can be overrided
 -include $(BLDFILE)
+
+-include $(RUNFILE)
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
@@ -116,6 +118,9 @@ endef
 define loop-library
 $(call loop-triplet,$(file < $1/$(LIBFILE)),)
 endef
+
+# $(call get-library-path,libraries)
+get-library-path = $(foreach l,$(strip $(call LIB_DIRS,$1)),$(abspath $l):)
 
 # $(call get-include-path,dir) -> include-path-list
 define get-include-path
@@ -360,9 +365,10 @@ variables:
 install:
 
 .PHONY: run
+run: LD_LIBRARY_PATH:=$(LD_LIBRARY_PATH):$(call get-library-path,$(LIBRARIES))
 run: $(OUT_DIR)/$(OUTPUT)
-	@LD_LIBRARY_PATH=$(foreach l,$(strip $(call LIB_DIRS,$(LIBRARIES))),$l:)\
-	$(ENVIRONMENTS)  ./$(OUT_DIR)/$(OUTPUT) $(ARGUMENTS)
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) $(ENVIRONMENTS) 						\
+	./$(OUT_DIR)/$(OUTPUT) $(ARGUMENTS)
 
 .PHONY: example
 example:

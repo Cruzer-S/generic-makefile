@@ -88,7 +88,7 @@ check-library =	$(filter-out 												\
 	))																		\
 )
 
-LIB_DIRS = $(sort $(dir $1))
+LIB_DIRS =$(sort $(dir $1))
 LIB_NAMES = $(patsubst lib%.so,%,$(notdir $1))
 # $(call LIBFLAGS,libraries) -> (-L<path> -l<name>)-list
 LIBFLAGS = $(if $(strip $1),$(addprefix -L,$(call LIB_DIRS,$1)) 			\
@@ -119,8 +119,9 @@ define loop-library
 $(call loop-triplet,$(file < $1/$(LIBFILE)),)
 endef
 
+SPACE := $(empty) $(empty)
 # $(call get-library-path,libraries)
-get-library-path = $(foreach l,$(strip $(call LIB_DIRS,$1)),$(abspath $l):)
+get-library-path =$(subst $(SPACE),,$(foreach l,$(call LIB_DIRS,$1),$(abspath $l):))
 
 # $(call get-include-path,dir) -> include-path-list
 define get-include-path
@@ -198,18 +199,18 @@ $2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $$($3_LIBS)
 	$(CXX) $(LDFLAGS) -shared -o $$@ $$^ $$(call LIBFLAGS,$$|) $(LDLIBS)
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
-	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
-		$(eval $O_created = shared)											\
-		$(call make-library,$(LIB_DIR)/$N,									\
-							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS)		\
-	))																		\
-))
-
-$(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_created = static)											\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),	\
 							fPIC,$3_ARVS,$3_LIBS)							\
+	))																		\
+))
+
+$(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
+	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
+		$(eval $O_created = shared)											\
+		$(call make-library,$(LIB_DIR)/$N,									\
+							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS)		\
 	))																		\
 ))
 
@@ -248,7 +249,6 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
-		$(eval $O_created = static)											\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),	\
 							$4,$5,$6)										\
 	))																		\
@@ -256,7 +256,7 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 
 endef
 
-# $(eval $(call make-program,base-dir,out-dir,name,shared,library-out)
+# $(eval $(call make-program,base-dir,out-dir,name,library-out)
 define make-program
 $(eval override OUTPUT := $3)
 
@@ -272,7 +272,7 @@ $2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
-		$(eval $O_created := shared)										\
+		$(eval $O_create := shared)											\
 		$(call make-library,$(LIB_DIR)/$N,									\
 							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS)		\
 	))																		\
@@ -280,9 +280,8 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
-		$(eval $O_created := static)										\
-		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),	\
-							$(if $4,fPIC),									\
+		$(eval $O_create := static)											\
+		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),,\
 							$3_ARVS,$3_LIBS)								\
 	))																		\
 ))
@@ -315,7 +314,7 @@ else
 # Rules
 # -----------------------------------------------------------------------------
 # $(eval $(call make-program,program-dir,output-dir,name)
-$(eval $(call make-program,.,$(OUT_DIR),$(OUTPUT),shared,LIBRARIES))
+$(eval $(call make-program,.,$(OUT_DIR),$(OUTPUT),LIBRARIES))
 # -----------------------------------------------------------------------------
 # Commands
 # -----------------------------------------------------------------------------
@@ -369,7 +368,7 @@ install:
 .PHONY: run
 run: LD_LIBRARY_PATH:=$(LD_LIBRARY_PATH):$(call get-library-path,$(LIBRARIES))
 run: $(OUT_DIR)/$(OUTPUT)
-	@LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) $(ENVIRONMENTS) 					\
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) $(ENVIRONMENTS) 					\
 	./$(OUT_DIR)/$(OUTPUT) $(ARGUMENTS)
 
 .PHONY: example

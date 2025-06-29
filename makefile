@@ -184,13 +184,14 @@ $(CXX_DEP): $2/%.d: %.cpp
 
 endef
 
-# $(call make-library,base-dir,output-dir,name,library-out)
+# $(call make-library,base-dir,output-dir,name,library-out,LDLIBS)
 define make-library
 $(eval -include $1/$(BLDFILE))
 
 $(call make-XXX,$1,$2,fPIC,no-main)
 
 $(eval $4 += $(LIBS))
+$(eval $5 += $(LDLIBS))
 
 $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
@@ -202,7 +203,7 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_created = static)											\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),	\
-							fPIC,$3_ARVS,$3_LIBS)							\
+							fPIC,$3_ARVS,$3_LIBS,$5)						\
 	))																		\
 ))
 
@@ -210,7 +211,8 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_created = shared)											\
 		$(call make-library,$(LIB_DIR)/$N,									\
-							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS)		\
+							$2,$(dir $N)$(call NAME2LIB,$O),				\
+							$3_LIBS,$5)										\
 	))																		\
 ))
 
@@ -218,11 +220,13 @@ $(eval $4 += $($3_LIBS))
 
 endef
 
-# $(call make-archive,base-dir,out-dir,name,shared,archives-out,libraries-out))
+# $(call make-archive,base-dir,out-dir,name,shared,archives-out,libraries-out,LDLIBS))
 define make-archive
 $(eval -include $1/$(BLDFILE))
 
 $(call make-XXX,$1,$2,$(if $4,fPIC),no-main)
+
+$(eval $7 += $(LDLIBS))
 
 ifneq ($(strip $(C_SRC) $(CXX_SRC)),)
 
@@ -243,14 +247,14 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_created = shared)											\
 		$(call make-library,$(LIB_DIR)/$N,									\
-							$2,$(dir $N)$(call NAME2LIB,$O),$6)				\
+							$2,$(dir $N)$(call NAME2LIB,$O),$6,$7)			\
 	))																		\
 ))
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),	\
-							$4,$5,$6)										\
+							$4,$5,$6,$7)									\
 	))																		\
 ))
 
@@ -268,21 +272,21 @@ $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
 $2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
-	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $(LDLIBS)
+	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $$(sort $$(LDLIBS)) $(LDLIBS)
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_create := shared)											\
 		$(call make-library,$(LIB_DIR)/$N,									\
-							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS)		\
+							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS,LDLIBS)	\
 	))																		\
 ))
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_create := static)											\
-		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),,\
-							$3_ARVS,$3_LIBS)								\
+		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),,	\
+							$3_ARVS,$3_LIBS,LDLIBS)							\
 	))																		\
 ))
 

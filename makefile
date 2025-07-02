@@ -1,4 +1,5 @@
 .SECONDEXPANSION:
+.SUFFIXES:
 # -----------------------------------------------------------------------------
 # Variables
 # -----------------------------------------------------------------------------
@@ -56,12 +57,11 @@ SYNC_TIME := $(shell LC_ALL=C date)
 
 # $(OUTPUT) can be overrided
 -include $(BLDFILE)
-
 -include $(RUNFILE)
 
 ifneq ($(filter-out DEBUG,$(MAKECMDGOALS)),$(MAKECMDGOALS))
 
-debug = $(info $1)
+debug = $(info DEBUG: $1)
 
 else
 
@@ -197,27 +197,28 @@ $(CXX_DEP): $2/%.d: %.cpp
 
 endef
 
-# $(call make-library,base-dir,output-dir,name,library-out,LDLIBS)
+# $(call make-library,base-dir,output-dir,name,library-out)
 define make-library
 $(eval -include $1/$(BLDFILE))
+
+$(call debug,make-library: $1, $2, $3, $4)
 
 $(call make-XXX,$1,$2,fPIC,no-main)
 
 $(eval $4 += $(LIBS))
-$(eval $5 += $(LDLIBS))
 
 $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
 $(call debug,$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $3_LIBS)
 $2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $$($3_LIBS)
-	$(CXX) $(LDFLAGS) -shared -o $$@ $$^ $$(call LIBFLAGS,$$|) $(LDLIBS)
+	$(CXX) $(LDFLAGS) -shared -o $$@ $$^ $$(call LIBFLAGS,$$|) $$(LDLIBS)
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_created = static)											\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),	\
-							fPIC,$3_ARVS,$3_LIBS,$5)						\
+							fPIC,$3_ARVS,$3_LIBS)							\
 	))																		\
 ))
 
@@ -226,7 +227,7 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 		$(eval $O_created = shared)											\
 		$(call make-library,$(LIB_DIR)/$N,									\
 							$2,$(dir $N)$(call NAME2LIB,$O),				\
-							$3_LIBS,$5)										\
+							$3_LIBS)										\
 	))																		\
 ))
 
@@ -234,13 +235,13 @@ $(eval $4 += $($3_LIBS))
 
 endef
 
-# $(call make-archive,base-dir,out-dir,name,shared,archives-out,libraries-out,LDLIBS))
+# $(call make-archive,base-dir,out-dir,name,shared,archives-out,libraries-out))
 define make-archive
 $(eval -include $1/$(BLDFILE))
 
-$(call make-XXX,$1,$2,$(if $4,fPIC),no-main)
+$(call debug,make-archive: $1, $2, $3, $4, $5, $6)
 
-$(eval $7 += $(LDLIBS))
+$(call make-XXX,$1,$2,$(if $4,fPIC),no-main)
 
 ifneq ($(strip $(C_SRC) $(CXX_SRC)),)
 
@@ -262,14 +263,14 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_created = shared)											\
 		$(call make-library,$(LIB_DIR)/$N,									\
-							$2,$(dir $N)$(call NAME2LIB,$O),$6,$7)			\
+							$2,$(dir $N)$(call NAME2LIB,$O),$6)				\
 	))																		\
 ))
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),	\
-							$4,$5,$6,$7)									\
+							$4,$5,$6)										\
 	))																		\
 ))
 
@@ -279,6 +280,8 @@ endef
 define make-program
 $(eval override OUTPUT := $3)
 
+$(call debug,make-program: $1, $2, $3, $4)
+
 $(eval $(call make-XXX,$1,$2,,))
 
 $(eval $4 += $(LIBS))
@@ -286,14 +289,15 @@ $(eval $4 += $(LIBS))
 $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
-$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
-	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $$(sort $$(LDLIBS))
+$(call debug,$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $($3_LIBS))
+$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $($3_LIBS)
+	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $$(LDLIBS)
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_create := shared)											\
 		$(call make-library,$(LIB_DIR)/$N,									\
-							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS,LDLIBS)	\
+							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS)		\
 	))																		\
 ))
 
@@ -301,13 +305,11 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_create := static)											\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),,	\
-							$3_ARVS,$3_LIBS,LDLIBS)							\
+							$3_ARVS,$3_LIBS)								\
 	))																		\
 ))
 
 $(eval $4 += $($3_LIBS))
-
-$(call debug,$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $($3_LIBS))
 
 endef
 

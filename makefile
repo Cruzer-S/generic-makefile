@@ -58,6 +58,17 @@ SYNC_TIME := $(shell LC_ALL=C date)
 -include $(BLDFILE)
 
 -include $(RUNFILE)
+
+ifneq ($(filter-out DEBUG,$(MAKECMDGOALS)),$(MAKECMDGOALS))
+
+debug = $(info $1)
+
+else
+
+debug = 
+
+endif
+
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
@@ -160,10 +171,12 @@ $(eval DEPENDENCIES += $(C_DEP) $(CXX_DEP))
 
 $(shell $(MKDIR) $2/$1/$(SRC_DIR))
 
+$(call debug,$(C_OBJ): $2/%.o: %.c)
 $(C_OBJ): $2/%.o: %.c
 	$(CC) $(if $3,-fPIC,) $(CFLAGS) $(CPPFLAGS) -c $$< -o $$@ 				\
 		  $(addprefix -I,$(call get-include-path,$1))
 
+$(if $(CXX_OBJ),$(call debug,$(CXX_OBJ): $2/%.o: %.cpp))
 $(CXX_OBJ): $2/%.o: %.cpp
 	$(CXX) $(if $3,-fPIC,) $(CXXFLAGS) $(CPPFLAGS) -c $$< -o $$@ 			\
 		  $(addprefix -I,$(call get-include-path,$1))
@@ -196,6 +209,7 @@ $(eval $5 += $(LDLIBS))
 $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
+$(call debug,$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $3_LIBS)
 $2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $($3_ARVS) | $(LIBS) $$($3_LIBS)
 	$(CXX) $(LDFLAGS) -shared -o $$@ $$^ $$(call LIBFLAGS,$$|) $(LDLIBS)
 
@@ -230,6 +244,7 @@ $(eval $7 += $(LDLIBS))
 
 ifneq ($(strip $(C_SRC) $(CXX_SRC)),)
 
+$(call debug,$2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ))
 $2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ)
 	$(AR) $(ARFLAGS) $$@ $$^
 
@@ -272,7 +287,7 @@ $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
 $2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
-	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $$(sort $$(LDLIBS)) $(LDLIBS)
+	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $$(sort $$(LDLIBS))
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
@@ -291,6 +306,8 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 ))
 
 $(eval $4 += $($3_LIBS))
+
+$(call debug,$2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $($3_LIBS))
 
 endef
 

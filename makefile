@@ -126,10 +126,6 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 ))
 endef
 
-define loop-library
-$(call loop-triplet,$(file < $1/$(LIBFILE)),)
-endef
-
 SPACE := $(empty) $(empty)
 # $(call get-library-path,libraries)
 get-library-path =$(subst $(SPACE),,$(foreach l,$(call LIB_DIRS,$1),$(abspath $l):))

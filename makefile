@@ -249,6 +249,7 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
+		$(eval $O_created = static)											\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),	\
 							$4,$5,$6,$7)									\
 	))																		\
@@ -272,7 +273,7 @@ $2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
-		$(eval $O_create := shared)											\
+		$(eval $O_created := shared)										\
 		$(call make-library,$(LIB_DIR)/$N,									\
 							$2,$(dir $N)$(call NAME2LIB,$O),$3_LIBS,LDLIBS)	\
 	))																		\
@@ -280,7 +281,7 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
-		$(eval $O_create := static)											\
+		$(eval $O_created := static)										\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),,	\
 							$3_ARVS,$3_LIBS,LDLIBS)							\
 	))																		\

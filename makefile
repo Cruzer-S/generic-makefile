@@ -221,8 +221,6 @@ $(eval -include $1/$(BLDFILE))
 
 $(call make-XXX,$1,$2,$(if $4,fPIC),no-main)
 
-$(eval $7 += $(LDLIBS))
-
 ifneq ($(strip $(C_SRC) $(CXX_SRC)),)
 
 $2/$(LIB_DIR)/$3: $(C_OBJ) $(CXX_OBJ)
@@ -237,6 +235,7 @@ endif
 
 $(eval $5 += $(ARVS))
 $(eval $6 += $(LIBS))
+$(eval $7 += $(LDLIBS))
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
@@ -268,7 +267,7 @@ $(eval $3_ARVS :=)
 $(eval $3_LIBS :=)
 
 $2/$3: $(C_OBJ) $(CXX_OBJ) $(ARVS) $$($3_ARVS) | $(LIBS) $$($3_LIBS)
-	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $$(sort $$(LDLIBS)) $(LDLIBS)
+	$(CXX) $(LDFLAGS) -o $$@ $$^ $$(call LIBFLAGS,$$|) $$(sort $$($3_LDLIBS) $(LDLIBS))
 
 $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,shared),$(if $(filter undefined,$(origin $O_created)),	\
@@ -282,7 +281,7 @@ $(foreach l,$(call get-library-data,$1),$(let N T O,$(subst ;, ,$l),		\
 	$(if $(filter $T,static),$(if $(filter undefined,$(origin $O_created)),	\
 		$(eval $O_created = static)											\
 		$(call make-archive,$(LIB_DIR)/$N,$2,$(dir $N)$(call NAME2ARV,$O),,	\
-							$3_ARVS,$3_LIBS,LDLIBS)							\
+							$3_ARVS,$3_LIBS,$3_LDLIBS)						\
 	))																		\
 ))
 

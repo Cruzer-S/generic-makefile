@@ -1,4 +1,15 @@
 # -----------------------------------------------------------------------------
+# Version check
+# -----------------------------------------------------------------------------
+REQUIRED_VERSION := 404
+
+MAKE_VERSION_INT := $(shell echo $(MAKE_VERSION) | 						\
+							awk -F. '{ printf("%d%02d\n", $$1, $$2) }')
+
+ifeq ($(shell [ $(MAKE_VERSION_INT) -lt $(REQUIRED_VERSION) ] && echo no),no)
+$(error GNU Make version >= 4.4 required, but found $(MAKE_VERSION))
+endif
+# -----------------------------------------------------------------------------
 # Variables
 # -----------------------------------------------------------------------------
 # Layout
